@@ -1,0 +1,3883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Command Center</title>
+  <style>
+    :root {
+      --bg-primary: #0a0f1c;
+      --bg-card: #141b2d;
+      --bg-card-hover: #1a2340;
+      --border: #1e2a40;
+      --text-primary: #e1e8f0;
+      --text-secondary: #8892a4;
+      --text-muted: #4a5568;
+      --accent: #25D366;
+      --accent-dim: rgba(37, 211, 102, 0.1);
+      --danger: #e74c3c;
+      --danger-dim: rgba(231, 76, 60, 0.1);
+      --warning: #f0b429;
+      --warning-dim: rgba(240, 180, 41, 0.1);
+      --info: #3498db;
+      --info-dim: rgba(52, 152, 219, 0.1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      min-height: 100vh;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-header h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #25D366, #128C7E);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sidebar-header .version {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+      margin-bottom: 2px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+
+    .nav-icon { font-size: 1.1rem; width: 22px; text-align: center; }
+
+    .nav-badge {
+      margin-left: auto;
+      background: var(--accent);
+      color: var(--bg-primary);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    .sidebar-status {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.ready { background: var(--accent); }
+    .status-dot.qr { background: var(--warning); }
+    .status-dot.disconnected { background: var(--danger); }
+
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ── Main Content ── */
+    .main {
+      margin-left: 220px;
+      flex: 1;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .page-header {
+      margin-bottom: 24px;
+    }
+
+    .page-header h2 {
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+
+    .page-header p {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    /* ── Cards & Grids ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .stat-card .label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-card .value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-top: 4px;
+    }
+
+    .stat-card .sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Dashboard Mission Control ── */
+    .dash-stat-cards {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 1100px) { .dash-stat-cards { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 900px) { .dash-stat-cards { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .dash-stat-cards { grid-template-columns: 1fr; } }
+
+    .dash-stat {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      transition: border-color 0.2s;
+    }
+    .dash-stat { cursor: pointer; }
+    .dash-stat:hover { border-color: var(--text-muted); }
+    .dash-stat.attention .dash-stat-value { color: var(--danger); }
+    .dash-stat.attention.ok .dash-stat-value { color: var(--accent); }
+    .dash-stat.messages .dash-stat-value { color: var(--info); }
+    .dash-stat.groups .dash-stat-value { color: var(--accent); }
+    .dash-stat.response .dash-stat-value { color: var(--accent); }
+    .dash-stat.response.warn .dash-stat-value { color: var(--warning); }
+    .dash-stat.response.bad .dash-stat-value { color: var(--danger); }
+
+    .dash-stat-icon {
+      font-size: 1.6rem;
+      line-height: 1;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .dash-stat-body { flex: 1; min-width: 0; }
+    .dash-stat-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+    .dash-stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+    .dash-stat-frac {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+    .dash-stat-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .dash-stat-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .dash-stat-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.6s ease;
+    }
+
+    .dash-stat-sparkline {
+      margin-top: 6px;
+      height: 24px;
+    }
+    .dash-stat-sparkline svg { display: block; width: 100%; height: 24px; }
+
+    @keyframes attention-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+      50% { box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.15); }
+    }
+    .dash-stat.attention.alert { animation: attention-pulse 2s infinite; border-color: var(--danger); }
+
+    /* Group Health Grid */
+    .group-health-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+      gap: 10px;
+    }
+
+    .gh-tile {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .gh-tile:hover { background: var(--bg-card-hover); border-color: var(--text-muted); }
+    .gh-tile-name {
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 6px;
+    }
+    .gh-tile-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+    .gh-tile-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .gh-dot-active { background: var(--accent); }
+    .gh-dot-quiet { background: var(--warning); }
+    .gh-dot-silent { background: var(--danger); }
+    .gh-dot-dead { background: var(--text-muted); }
+
+    /* Dashboard Legend */
+    .dash-legend {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-left: 8px;
+    }
+
+    /* Dashboard Split Rows */
+    .dash-row-split {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .dash-col-60 { flex: 6; min-width: 0; }
+    .dash-col-40 { flex: 4; min-width: 0; }
+    .dash-col-50 { flex: 1; min-width: 0; }
+    @media (max-width: 800px) {
+      .dash-row-split { flex-direction: column; }
+    }
+
+    /* Action Queue */
+    .aq-item {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      transition: background 0.1s;
+      cursor: pointer;
+    }
+    .aq-item:last-child { border-bottom: none; }
+    .aq-item:hover { background: var(--bg-card-hover); }
+    .aq-badge {
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .aq-badge-question { background: var(--warning-dim); color: var(--warning); }
+    .aq-badge-mention { background: var(--accent-dim); color: var(--accent); }
+    .aq-body { flex: 1; min-width: 0; }
+    .aq-sender { font-size: 0.8rem; font-weight: 600; }
+    .aq-group { font-size: 0.7rem; color: var(--text-secondary); margin-top: 1px; }
+    .aq-text {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .aq-time { font-size: 0.68rem; color: var(--text-muted); flex-shrink: 0; margin-top: 2px; }
+    .aq-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .aq-btn {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .aq-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+
+    /* Volume Chart */
+    .volume-chart {
+      height: 140px;
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+    }
+    .vc-bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .vc-bar {
+      width: 100%;
+      background: var(--info);
+      border-radius: 2px 2px 0 0;
+      min-height: 2px;
+      opacity: 0.6;
+      transition: opacity 0.15s, height 0.3s;
+    }
+    .vc-bar.peak { opacity: 1; background: var(--accent); }
+    .vc-bar-wrap:hover .vc-bar { opacity: 1; }
+    .vc-label {
+      font-size: 0.55rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    /* Team Activity */
+    .ta-item {
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ta-item:last-child { border-bottom: none; }
+    .ta-rank {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent-dim);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .ta-info { flex: 1; min-width: 0; }
+    .ta-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ta-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
+    .ta-count {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    .ta-count-label { font-size: 0.6rem; color: var(--text-muted); font-weight: 400; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-header h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .card-body { padding: 0; }
+
+    /* ── Tables / Lists ── */
+    .list-item {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: background 0.1s;
+    }
+
+    .list-item:last-child { border-bottom: none; }
+    .list-item:hover { background: var(--bg-card-hover); }
+
+    .list-item .icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .list-item .content { flex: 1; min-width: 0; }
+
+    .list-item .title {
+      font-size: 0.85rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .list-item .meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .list-item .body {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .list-item .time {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .list-item.unread { border-left: 3px solid var(--accent); }
+
+    /* ── Badges & Tags ── */
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .tag-open { background: var(--warning-dim); color: var(--warning); }
+    .tag-answered { background: var(--accent-dim); color: var(--accent); }
+    .tag-dismissed { background: rgba(100,100,120,0.15); color: #8892a4; }
+    .tag-group { background: var(--info-dim); color: var(--info); }
+    .tag-urgent { background: var(--danger-dim); color: var(--danger); }
+    .tag-high { background: var(--warning-dim); color: var(--warning); }
+    .tag-normal { background: var(--info-dim); color: var(--info); }
+    .tag-low { background: rgba(100,100,120,0.15); color: #8892a4; }
+    .tag-type { background: rgba(147,130,220,0.12); color: #9382dc; }
+
+    /* ── Questions Enhanced ── */
+    .q-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .q-filters select {
+      padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-primary); font-size: 0.8rem; outline: none; cursor: pointer;
+    }
+
+    .q-split { display: flex; gap: 16px; }
+    .q-list-panel { flex: 1; min-width: 0; }
+    .q-detail-panel { width: 420px; flex-shrink: 0; position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
+    @media (max-width: 1100px) { .q-split { flex-direction: column; } .q-detail-panel { width: 100%; position: static; max-height: none; } }
+
+    .q-item { padding: 14px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+    .q-item:hover { background: var(--bg-card-hover); }
+    .q-item.selected { background: var(--accent-dim); border-left: 3px solid var(--accent); }
+    .q-item-header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .q-item-sender { font-weight: 600; font-size: 0.85rem; }
+    .q-item-group { font-size: 0.75rem; color: var(--text-secondary); }
+    .q-item-body { font-size: 0.82rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.4; }
+    .q-item-footer { display: flex; gap: 8px; align-items: center; margin-top: 6px; font-size: 0.72rem; color: var(--text-muted); }
+    .q-item-answer { margin-top: 6px; padding: 8px 12px; background: var(--accent-dim); border-radius: 6px; font-size: 0.8rem; }
+
+    .q-detail-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .q-thread-msg { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+    .q-thread-msg.is-question { background: var(--warning-dim); border-left: 3px solid var(--warning); }
+    .q-thread-msg.is-answer { background: var(--accent-dim); border-left: 3px solid var(--accent); }
+    .q-thread-sender { font-weight: 600; font-size: 0.8rem; }
+    .q-thread-body { color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+    .q-thread-time { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+    .q-candidate { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-start; }
+    .q-candidate.accepted { background: var(--accent-dim); }
+    .q-confidence-bar { width: 50px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; flex-shrink: 0; margin-top: 6px; }
+    .q-confidence-fill { height: 100%; border-radius: 3px; }
+    .q-candidate-body { flex: 1; min-width: 0; }
+    .q-actions { display: flex; gap: 6px; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.9rem; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--accent); color: var(--bg-primary); }
+    .btn-primary:hover { background: #20c05c; }
+    .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+
+    .tab:hover { color: var(--text-primary); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── QR Page ── */
+    .qr-container {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .qr-container img {
+      border-radius: 12px;
+      background: white;
+      padding: 16px;
+      max-width: 300px;
+    }
+
+    /* ── Send Message ── */
+    .send-bar {
+      display: flex;
+      gap: 8px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .send-bar input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .send-bar input:focus { border-color: var(--accent); }
+
+    /* ── Settings ── */
+    .setting-group {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .setting-group:last-child { border-bottom: none; }
+
+    .setting-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .setting-group .hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .setting-group input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .setting-group input[type="text"]:focus { border-color: var(--accent); }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 16px;
+      background: var(--bg-card-hover);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .ai-stat-box {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .ai-stat-num {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .ai-stat-label {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .chip .remove {
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .chip .remove:hover { color: var(--danger); }
+
+    /* ── Group row ── */
+    .group-row {
+      display: grid;
+      grid-template-columns: 1fr 100px 80px 80px 140px;
+      align-items: center;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+
+    .group-row:hover { background: var(--bg-card-hover); }
+    .group-row .name { font-weight: 500; }
+    .group-row .count { color: var(--text-secondary); text-align: center; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar { width: 60px; }
+      .sidebar .nav-label, .sidebar-header h1, .sidebar-header .version, .sidebar-status span { display: none; }
+      .main { margin-left: 60px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .group-row { grid-template-columns: 1fr 80px 80px; }
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── View Toggle ── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Loading ── */
+    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+
+    /* ── Tasks ── */
+    .task-split { display: flex; gap: 16px; }
+    .task-list-panel { flex: 1; min-width: 0; }
+    .task-detail-panel { width: 420px; flex-shrink: 0; position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
+    @media (max-width: 1100px) { .task-split { flex-direction: column; } .task-detail-panel { width: 100%; position: static; max-height: none; } }
+    .task-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .task-filters select {
+      background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary);
+      padding: 6px 10px; border-radius: 6px; font-size: 0.78rem;
+    }
+    .task-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+    .task-toolbar .btn-new-task {
+      background: var(--accent); color: #000; border: none; padding: 8px 16px; border-radius: 8px;
+      font-size: 0.82rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;
+    }
+    .task-toolbar .btn-new-task:hover { filter: brightness(1.1); }
+
+    .task-item {
+      display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px;
+      border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s;
+    }
+    .task-item:hover { background: var(--bg-card-hover); }
+    .task-item.selected { background: var(--accent-dim); border-left: 3px solid var(--accent); }
+    .task-item .task-check {
+      width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border);
+      flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      margin-top: 2px; transition: all 0.15s;
+    }
+    .task-item .task-check:hover { border-color: var(--accent); background: var(--accent-dim); }
+    .task-item .task-check.completed { background: var(--accent); border-color: var(--accent); }
+    .task-item .task-check.completed::after { content: '✓'; color: #000; font-size: 0.7rem; font-weight: 700; }
+    .task-item .task-info { flex: 1; min-width: 0; }
+    .task-item .task-title { font-size: 0.85rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .task-item .task-title.done { text-decoration: line-through; color: var(--text-muted); }
+    .task-item .task-meta { font-size: 0.72rem; color: var(--text-secondary); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .task-item .task-meta .overdue { color: var(--danger); }
+
+    .task-detail-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .task-detail-section { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+    .task-detail-section label { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+    .task-detail-section input, .task-detail-section textarea, .task-detail-section select {
+      width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary);
+      padding: 8px 10px; border-radius: 6px; font-size: 0.82rem; font-family: inherit;
+    }
+    .task-detail-section textarea { min-height: 60px; resize: vertical; }
+
+    .step-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; font-size: 0.82rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .step-item input[type="checkbox"] { accent-color: var(--accent); flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; cursor: pointer; }
+    .step-item .step-text { flex: 1; line-height: 1.4; word-break: break-word; }
+    .step-item .step-text.done { text-decoration: line-through; color: var(--text-muted); }
+    .step-add { display: flex; gap: 6px; margin-top: 8px; }
+    .step-add input { flex: 1; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); padding: 8px 10px; border-radius: 6px; font-size: 0.8rem; }
+    .step-add button { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); padding: 6px 12px; border-radius: 6px; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+
+    .task-actions { display: flex; gap: 8px; padding: 14px 20px; flex-wrap: wrap; }
+    .task-actions button {
+      padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; cursor: pointer; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-secondary);
+    }
+    .task-actions button:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    .task-actions .btn-complete { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+    .task-actions .btn-danger { background: var(--danger-dim); color: var(--danger); border-color: var(--danger); }
+
+    /* New Task Modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      width: 480px; max-width: 90vw; max-height: 85vh; overflow-y: auto;
+    }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .modal-header h3 { font-size: 1rem; font-weight: 600; }
+    .modal-header .close-btn { background: none; border: none; color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; }
+    .modal-body { padding: 16px 20px; }
+    .modal-body .form-group { margin-bottom: 14px; }
+    .modal-body .form-group label { font-size: 0.78rem; color: var(--text-secondary); display: block; margin-bottom: 4px; }
+    .modal-body .form-group input, .modal-body .form-group textarea, .modal-body .form-group select {
+      width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary);
+      padding: 8px 10px; border-radius: 6px; font-size: 0.82rem; font-family: inherit;
+    }
+    .modal-body .form-group textarea { min-height: 60px; resize: vertical; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+    .modal-footer button { padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; cursor: pointer; border: none; }
+    .modal-footer .btn-cancel { background: var(--bg-primary); color: var(--text-secondary); }
+    .modal-footer .btn-create { background: var(--accent); color: #000; font-weight: 600; }
+
+    /* Create task shortcut button on other views */
+    .btn-create-task {
+      background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent);
+      padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; cursor: pointer; white-space: nowrap;
+    }
+    .btn-create-task:hover { background: var(--accent); color: #000; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h1>Command Center</h1>
+      <div class="version">v3.0 Web</div>
+    </div>
+
+    <div class="sidebar-nav">
+      <button class="nav-item active" onclick="showView('dashboard')">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Dashboard</span>
+      </button>
+      <button class="nav-item" onclick="showView('groups')">
+        <span class="nav-icon">👥</span>
+        <span class="nav-label">Groups</span>
+      </button>
+      <button class="nav-item" onclick="showView('questions')">
+        <span class="nav-icon">❓</span>
+        <span class="nav-label">Questions</span>
+        <span class="nav-badge" id="badge-questions" style="display:none">0</span>
+      </button>
+      <button class="nav-item" onclick="showView('mentions')">
+        <span class="nav-icon">@</span>
+        <span class="nav-label">Mentions</span>
+        <span class="nav-badge" id="badge-mentions" style="display:none">0</span>
+      </button>
+      <button class="nav-item" onclick="showView('dms')">
+        <span class="nav-icon">💬</span>
+        <span class="nav-label">DMs</span>
+        <span class="nav-badge" id="badge-dms" style="display:none">0</span>
+      </button>
+      <button class="nav-item" onclick="showView('tasks')">
+        <span class="nav-icon">✅</span>
+        <span class="nav-label">Tasks</span>
+        <span class="nav-badge" id="badge-tasks" style="display:none">0</span>
+      </button>
+      <button class="nav-item" onclick="showView('feed')">
+        <span class="nav-icon">📡</span>
+        <span class="nav-label">Activity</span>
+      </button>
+      <button class="nav-item" onclick="showView('compose')">
+        <span class="nav-icon">✏️</span>
+        <span class="nav-label">Compose</span>
+      </button>
+      <button class="nav-item" onclick="showView('settings')">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Settings</span>
+      </button>
+    </div>
+
+    <div class="sidebar-status">
+      <span class="status-dot disconnected" id="sidebar-status-dot"></span>
+      <span id="sidebar-status-text">Connecting...</span>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main">
+
+    <!-- ═══ Dashboard View ═══ -->
+    <div class="view active" id="view-dashboard">
+      <div class="page-header">
+        <h2>Mission Control</h2>
+        <p>Action-oriented overview — what needs your team's attention right now</p>
+      </div>
+
+      <!-- Row 1: Smart Stat Cards -->
+      <div class="dash-stat-cards">
+        <div class="dash-stat attention" id="dash-card-attention" onclick="showView('questions')">
+          <div class="dash-stat-icon">🔔</div>
+          <div class="dash-stat-body">
+            <div class="dash-stat-label">Needs Attention</div>
+            <div class="dash-stat-value" id="dash-needs-attention">0</div>
+            <div class="dash-stat-sub" id="dash-attention-detail">questions · mentions · DMs</div>
+          </div>
+        </div>
+        <div class="dash-stat messages" id="dash-card-messages" onclick="showView('feed')">
+          <div class="dash-stat-icon">💬</div>
+          <div class="dash-stat-body">
+            <div class="dash-stat-label">Messages Today</div>
+            <div class="dash-stat-value" id="dash-today-msgs">0</div>
+            <div class="dash-stat-sparkline" id="dash-sparkline"></div>
+          </div>
+        </div>
+        <div class="dash-stat groups" id="dash-card-groups" onclick="showView('groups')">
+          <div class="dash-stat-icon">👥</div>
+          <div class="dash-stat-body">
+            <div class="dash-stat-label">Active Groups</div>
+            <div class="dash-stat-value"><span id="dash-active-groups">0</span><span class="dash-stat-frac" id="dash-groups-frac">/0</span></div>
+            <div class="dash-stat-bar"><div class="dash-stat-bar-fill" id="dash-groups-bar"></div></div>
+          </div>
+        </div>
+        <div class="dash-stat response" id="dash-card-response" onclick="showView('questions')">
+          <div class="dash-stat-icon">📊</div>
+          <div class="dash-stat-body">
+            <div class="dash-stat-label">Response Rate</div>
+            <div class="dash-stat-value" id="dash-response-rate">—</div>
+            <div class="dash-stat-sub" id="dash-response-detail">answered / total questions</div>
+          </div>
+        </div>
+        <div class="dash-stat" id="dash-card-tasks" onclick="showView('tasks')" style="cursor:pointer;">
+          <div class="dash-stat-icon">✅</div>
+          <div class="dash-stat-body">
+            <div class="dash-stat-label">Open Tasks</div>
+            <div class="dash-stat-value" id="dash-open-tasks">0</div>
+            <div class="dash-stat-sub" id="dash-tasks-detail">tasks needing action</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Group Health Grid -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <h3>Group Health</h3>
+          <span class="dash-legend">
+            <span class="legend-dot" style="background:var(--accent)"></span>Active
+            <span class="legend-dot" style="background:var(--warning)"></span>Quiet
+            <span class="legend-dot" style="background:var(--danger)"></span>Silent
+            <span class="legend-dot" style="background:var(--text-muted)"></span>Dead
+          </span>
+        </div>
+        <div class="card-body" style="padding:16px;">
+          <div class="group-health-grid" id="dash-group-health">
+            <div class="empty-state"><p>Loading groups...</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Action Queue + Volume Chart -->
+      <div class="dash-row-split">
+        <div class="dash-col-60">
+          <div class="card">
+            <div class="card-header">
+              <h3>Urgent Action Queue</h3>
+              <button class="btn btn-ghost btn-sm" onclick="showView('questions')">View All</button>
+            </div>
+            <div class="card-body" id="dash-action-queue">
+              <div class="empty-state">
+                <div class="icon">✨</div>
+                <p>No items need attention right now</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dash-col-40">
+          <div class="card">
+            <div class="card-header">
+              <h3>Message Volume (24h)</h3>
+            </div>
+            <div class="card-body" style="padding:16px;">
+              <div id="dash-volume-chart" class="volume-chart">
+                <div class="empty-state"><p>Loading chart...</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 4: Team Activity + Live Feed -->
+      <div class="dash-row-split">
+        <div class="dash-col-50">
+          <div class="card">
+            <div class="card-header">
+              <h3>Top Contributors</h3>
+            </div>
+            <div class="card-body" id="dash-team-activity">
+              <div class="empty-state">
+                <div class="icon">👤</div>
+                <p>Sender stats will appear as messages flow in</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dash-col-50">
+          <div class="card">
+            <div class="card-header">
+              <h3>Live Activity</h3>
+              <button class="btn btn-ghost btn-sm" onclick="showView('feed')">View All</button>
+            </div>
+            <div class="card-body" id="dash-recent-feed">
+              <div class="empty-state">
+                <div class="icon">📡</div>
+                <p>Activity will appear here as messages come in</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Groups View ═══ -->
+    <div class="view" id="view-groups">
+      <div class="page-header">
+        <h2>Groups</h2>
+        <p>All tracked WhatsApp groups</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Group List</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadGroups()">Refresh</button>
+        </div>
+        <div class="card-body" id="groups-list">
+          <div class="loading">Loading groups...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Questions View ═══ -->
+    <div class="view" id="view-questions">
+      <div class="page-header">
+        <h2>Questions Tracker</h2>
+        <p>Intelligent question detection and answer tracking across all groups</p>
+      </div>
+
+      <!-- Status Tabs -->
+      <div class="tabs">
+        <button class="tab active" onclick="loadQuestions('open', this)">Open</button>
+        <button class="tab" onclick="loadQuestions('answered', this)">Answered</button>
+        <button class="tab" onclick="loadQuestions('dismissed', this)">Dismissed</button>
+        <button class="tab" onclick="loadQuestions('all', this)">All</button>
+      </div>
+
+      <!-- Filters -->
+      <div class="q-filters">
+        <select id="q-filter-priority" onchange="applyQuestionFilters()">
+          <option value="">All Priorities</option>
+          <option value="urgent">Urgent</option>
+          <option value="high">High</option>
+          <option value="normal">Normal</option>
+          <option value="low">Low</option>
+        </select>
+        <select id="q-filter-type" onchange="applyQuestionFilters()">
+          <option value="">All Types</option>
+          <option value="yes_no">Yes/No</option>
+          <option value="info_seeking">Info Seeking</option>
+          <option value="action_request">Action Request</option>
+          <option value="scheduling">Scheduling</option>
+          <option value="approval">Approval</option>
+          <option value="status_check">Status Check</option>
+          <option value="opinion">Opinion</option>
+          <option value="general">General</option>
+        </select>
+        <select id="q-filter-directed" onchange="applyQuestionFilters()">
+          <option value="">All Questions</option>
+          <option value="directed">Directed @ Me</option>
+        </select>
+        <span id="q-result-count" style="font-size:0.78rem;color:var(--text-muted);margin-left:auto;"></span>
+      </div>
+
+      <!-- Split View: List + Detail -->
+      <div class="q-split">
+        <div class="q-list-panel">
+          <div class="card">
+            <div class="card-body" id="questions-list">
+              <div class="empty-state">
+                <div class="icon">❓</div>
+                <p>No questions detected yet. They'll appear as people ask questions in your groups.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="q-detail-panel">
+          <div class="card" id="q-detail-card">
+            <div class="card-body" id="q-detail-content">
+              <div class="q-detail-empty">
+                <div style="font-size:2rem;margin-bottom:8px;">🔍</div>
+                <p>Select a question to view its thread, answer candidates, and take actions</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Mentions View ═══ -->
+    <div class="view" id="view-mentions">
+      <div class="page-header">
+        <h2>Mentions</h2>
+        <p>When someone mentions your name</p>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="loadMentions('open', this)">Open</button>
+        <button class="tab" onclick="loadMentions('resolved', this)">Resolved</button>
+        <button class="tab" onclick="loadMentions('all', this)">All</button>
+      </div>
+      <div class="card">
+        <div class="card-body" id="mentions-list">
+          <div class="empty-state">
+            <div class="icon">@</div>
+            <p>No mentions yet. They'll show up when someone mentions your tracked name.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DMs View ═══ -->
+    <div class="view" id="view-dms">
+      <div class="page-header">
+        <h2>Direct Messages</h2>
+        <p>Private messages to the shared WhatsApp account</p>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="loadDMs('open', this)">Open</button>
+        <button class="tab" onclick="loadDMs('resolved', this)">Resolved</button>
+        <button class="tab" onclick="loadDMs('all', this)">All</button>
+      </div>
+      <div class="card">
+        <div class="card-body" id="dms-list">
+          <div class="empty-state">
+            <div class="icon">💬</div>
+            <p>No direct messages yet.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Activity Feed View ═══ -->
+    <div class="view" id="view-feed">
+      <div class="page-header">
+        <h2>Activity Feed</h2>
+        <p>All recent activity across your groups</p>
+      </div>
+      <div id="feed-filter-banner" style="display:none;align-items:center;padding:8px 14px;background:var(--info-dim);border:1px solid var(--info);border-radius:8px;margin-bottom:12px;font-size:0.8rem;color:var(--info);"></div>
+      <div class="tabs">
+        <button class="tab active" onclick="loadFeed('all', this)">All</button>
+        <button class="tab" onclick="loadFeed('message', this)">Messages</button>
+        <button class="tab" onclick="loadFeed('question', this)">Questions</button>
+        <button class="tab" onclick="loadFeed('mention', this)">Mentions</button>
+        <button class="tab" onclick="loadFeed('dm', this)">DMs</button>
+      </div>
+      <div class="card">
+        <div class="card-body" id="feed-list">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Tasks View ═══ -->
+    <div class="view" id="view-tasks">
+      <div class="page-header">
+        <h2>Task Tracker</h2>
+        <p>Manage team action items from questions, mentions, and messages</p>
+      </div>
+
+      <div class="task-toolbar">
+        <button class="btn-new-task" onclick="openNewTaskModal()">＋ New Task</button>
+        <span id="task-stats-bar" style="font-size:0.78rem;color:var(--text-secondary);margin-left:auto;"></span>
+      </div>
+
+      <!-- Status Tabs -->
+      <div class="tabs">
+        <button class="tab active" onclick="loadTasks('open', this)">Open</button>
+        <button class="tab" onclick="loadTasks('in_progress', this)">In Progress</button>
+        <button class="tab" onclick="loadTasks('completed', this)">Completed</button>
+        <button class="tab" onclick="loadTasks('all', this)">All</button>
+      </div>
+
+      <!-- Filters -->
+      <div class="task-filters">
+        <select id="task-filter-priority" onchange="applyTaskFilters()">
+          <option value="">All Priorities</option>
+          <option value="urgent">Urgent</option>
+          <option value="high">High</option>
+          <option value="normal">Normal</option>
+          <option value="low">Low</option>
+        </select>
+        <select id="task-filter-assignee" onchange="applyTaskFilters()">
+          <option value="">All Assignees</option>
+        </select>
+        <select id="task-filter-due" onchange="applyTaskFilters()">
+          <option value="">All Due Dates</option>
+          <option value="overdue">Overdue</option>
+          <option value="today">Due Today</option>
+          <option value="week">Due This Week</option>
+        </select>
+        <span id="task-result-count" style="font-size:0.78rem;color:var(--text-muted);margin-left:auto;"></span>
+      </div>
+
+      <!-- Split View: List + Detail -->
+      <div class="task-split">
+        <div class="task-list-panel">
+          <div class="card">
+            <div class="card-body" id="tasks-list">
+              <div class="task-detail-empty">
+                <div style="font-size:2rem;margin-bottom:8px;">✅</div>
+                <p>No tasks yet. Create one or convert a question into a task.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="task-detail-panel">
+          <div class="card" id="task-detail-card">
+            <div class="card-body" id="task-detail-content">
+              <div class="task-detail-empty">
+                <div style="font-size:2rem;margin-bottom:8px;">📋</div>
+                <p>Select a task to view details, edit, add steps, or mark complete</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New Task Modal -->
+    <div class="modal-overlay" id="new-task-modal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>New Task</h3>
+          <button class="close-btn" onclick="closeNewTaskModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Title *</label>
+            <input type="text" id="new-task-title" placeholder="What needs to be done?">
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea id="new-task-body" placeholder="Add details or context..."></textarea>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <div class="form-group" style="flex:1;">
+              <label>Priority</label>
+              <select id="new-task-priority">
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Assign To</label>
+              <select id="new-task-assignee">
+                <option value="">Unassigned</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Due Date</label>
+            <input type="date" id="new-task-due">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" onclick="closeNewTaskModal()">Cancel</button>
+          <button class="btn-create" onclick="createTask()">Create Task</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Settings View ═══ -->
+    <div class="view" id="view-settings">
+      <div class="page-header">
+        <h2>Settings</h2>
+        <p>Configure your Command Center</p>
+      </div>
+
+      <div class="card">
+        <div class="setting-group">
+          <label>Your Name (for mention tracking)</label>
+          <div class="hint">Messages containing this name will be flagged as mentions</div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="setting-track-name" placeholder="e.g. Austin" />
+            <button class="btn btn-primary btn-sm" onclick="saveTrackName()">Save</button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label>Partner Groups</label>
+          <div class="hint">Core groups to track on the dashboard. Leave empty to track all.</div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="setting-partner-input" placeholder="Group name" />
+            <button class="btn btn-primary btn-sm" onclick="addPartnerGroup()">Add</button>
+          </div>
+          <div class="chip-list" id="partner-chips"></div>
+        </div>
+
+        <div class="setting-group">
+          <label>Internal Staff</label>
+          <div class="hint">Staff names for filtering analytics (staff vs partner view)</div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="setting-staff-input" placeholder="Staff name" />
+            <button class="btn btn-primary btn-sm" onclick="addStaffMember()">Add</button>
+          </div>
+          <div class="chip-list" id="staff-chips"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header">
+          <h3>WhatsApp Connection</h3>
+        </div>
+        <div class="card-body" style="padding:20px;">
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
+            Status: <strong id="settings-wa-status">Unknown</strong>
+          </p>
+          <button class="btn btn-ghost" onclick="reconnectWhatsApp()">Reconnect WhatsApp</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header">
+          <h3>Backfill Messages</h3>
+        </div>
+        <div class="card-body" style="padding:20px;">
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
+            Pull historical messages from all group chats and process them — detects questions, mentions, and runs AI classification.
+            Safe to run multiple times (skips duplicates).
+          </p>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+            <label style="font-size:0.8rem;color:var(--text-secondary);">Messages per chat:</label>
+            <select id="backfill-limit" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="200">200</option>
+              <option value="500">500</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="startBackfill()" id="btn-backfill">Start Backfill</button>
+          <div id="backfill-progress" style="margin-top:12px;display:none;">
+            <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <strong style="font-size:0.85rem;" id="bf-status">Running...</strong>
+                <span style="font-size:0.75rem;color:var(--text-muted);" id="bf-chat-progress">0 / 0 chats</span>
+              </div>
+              <div style="background:var(--bg-card-hover);border-radius:4px;height:6px;overflow:hidden;margin-bottom:8px;">
+                <div id="bf-progress-bar" style="height:100%;background:var(--accent);border-radius:4px;width:0%;transition:width 0.3s;"></div>
+              </div>
+              <div style="font-size:0.75rem;color:var(--text-muted);" id="bf-current-chat"></div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;">
+                <div class="ai-stat-box"><span class="ai-stat-num" id="bf-new">0</span><span class="ai-stat-label">New Messages</span></div>
+                <div class="ai-stat-box"><span class="ai-stat-num" id="bf-questions">0</span><span class="ai-stat-label">Questions</span></div>
+                <div class="ai-stat-box"><span class="ai-stat-num" id="bf-mentions">0</span><span class="ai-stat-label">Mentions</span></div>
+                <div class="ai-stat-box"><span class="ai-stat-num" id="bf-dupes">0</span><span class="ai-stat-label">Dupes Skipped</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header">
+          <h3>AI Message Classification</h3>
+          <span class="badge" id="ai-status-badge" style="font-size:0.75rem;">checking...</span>
+        </div>
+        <div class="card-body" style="padding:20px;">
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
+            Uses Claude Haiku to intelligently classify messages — detects questions regex misses, catches false positives,
+            and identifies actionable items. Requires an <code>ANTHROPIC_API_KEY</code> in your <code>.env</code> file.
+          </p>
+          <div id="ai-stats-panel" style="margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px;">
+              <div class="ai-stat-box"><span class="ai-stat-num" id="ai-stat-calls">—</span><span class="ai-stat-label">API Calls</span></div>
+              <div class="ai-stat-box"><span class="ai-stat-num" id="ai-stat-classified">—</span><span class="ai-stat-label">Classified</span></div>
+              <div class="ai-stat-box"><span class="ai-stat-num" id="ai-stat-dismissed">—</span><span class="ai-stat-label">False Positives Caught</span></div>
+              <div class="ai-stat-box"><span class="ai-stat-num" id="ai-stat-queue">—</span><span class="ai-stat-label">In Queue</span></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="runAIReclassify()" id="btn-ai-reclassify">Reclassify Unprocessed Messages</button>
+            <button class="btn btn-ghost btn-sm" onclick="testAIClassify()">Test Single Message</button>
+          </div>
+          <div id="ai-test-result" style="margin-top:12px;display:none;"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header">
+          <h3>Setup Wizard</h3>
+        </div>
+        <div class="card-body" style="padding:20px;">
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
+            Run the initial setup to configure your name, groups, and staff list.
+          </p>
+          <button class="btn btn-primary" onclick="runSetup()">Complete Setup</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Compose View ═══ -->
+    <div class="view" id="view-compose">
+      <div class="page-header">
+        <h2>Compose Message</h2>
+        <p>Send a message or broadcast to multiple groups</p>
+      </div>
+
+      <!-- Recipients -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Recipients</h3>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="composeAddPartnerGroups()">All Partner Groups</button>
+            <button class="btn btn-ghost btn-sm" onclick="composeClearRecipients()">Clear All</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:16px 20px;">
+          <!-- Selected chips -->
+          <div id="compose-selected-chips" class="chip-list" style="margin-bottom:10px;min-height:24px;"></div>
+          <!-- Autocomplete input -->
+          <div style="position:relative;">
+            <input type="text" id="compose-group-input" placeholder="Type to search groups..." autocomplete="off"
+              oninput="composeAutocomplete()" onfocus="composeAutocomplete()"
+              style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.85rem;outline:none;" />
+            <div id="compose-autocomplete-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:50;"></div>
+          </div>
+          <div style="margin-top:8px;font-size:0.8rem;color:var(--text-secondary);">
+            <span id="compose-selected-count">0</span> group(s) selected
+          </div>
+        </div>
+      </div>
+
+      <!-- Templates -->
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header">
+          <h3>Templates</h3>
+        </div>
+        <div class="card-body" style="padding:12px 20px;">
+          <!-- Load template row -->
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+            <select id="compose-template-select" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.85rem;outline:none;cursor:pointer;">
+              <option value="">-- Select a template --</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="composeLoadSelectedTemplate()">Load</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="composeDeleteSelectedTemplate()">Delete</button>
+          </div>
+          <!-- Save template row -->
+          <div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--border);padding-top:10px;">
+            <input type="text" id="compose-template-name" placeholder="Template name..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.85rem;outline:none;" />
+            <button class="btn btn-primary btn-sm" onclick="composeSaveTemplate()">Save Current Message</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message -->
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header">
+          <h3>Message</h3>
+        </div>
+        <div class="card-body" style="padding:20px;">
+          <!-- Formatting toolbar -->
+          <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm" onclick="composeWrap('*')" title="Bold (*text*)" style="font-weight:700;min-width:32px;">B</button>
+            <button class="btn btn-ghost btn-sm" onclick="composeWrap('_')" title="Italic (_text_)" style="font-style:italic;min-width:32px;">I</button>
+            <button class="btn btn-ghost btn-sm" onclick="composeWrap('~')" title="Strikethrough (~text~)" style="text-decoration:line-through;min-width:32px;">S</button>
+            <button class="btn btn-ghost btn-sm" onclick="composeWrap('```')" title="Monospace (```text```)" style="font-family:monospace;min-width:32px;">&lt;/&gt;</button>
+            <div style="width:1px;background:var(--border);margin:0 4px;"></div>
+            <button class="btn btn-ghost btn-sm" onclick="composeInsertBullets()" title="Bullet list">• List</button>
+            <button class="btn btn-ghost btn-sm" onclick="composeInsertNumbered()" title="Numbered list">1. List</button>
+            <div style="width:1px;background:var(--border);margin:0 4px;"></div>
+            <button class="btn btn-ghost btn-sm" onclick="composeInsertAt('\n')" title="Line break">↵ Break</button>
+            <button class="btn btn-ghost btn-sm" onclick="composeInsertAt('\n\n')" title="Paragraph break">¶ Para</button>
+            <div style="width:1px;background:var(--border);margin:0 4px;"></div>
+            <button class="btn btn-ghost btn-sm" onclick="composeUppercase()" title="UPPERCASE">AA</button>
+            <button class="btn btn-ghost btn-sm" onclick="composeLowercase()" title="lowercase" style="font-size:0.7rem;">aa</button>
+          </div>
+          <textarea id="compose-message" rows="6" placeholder="Type your message here..." style="width:100%;padding:14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.9rem;outline:none;resize:vertical;font-family:inherit;line-height:1.5;"></textarea>
+
+          <!-- Media attachment -->
+          <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+              📎 Attach Media
+              <input type="file" id="compose-media-input" accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx" style="display:none;" onchange="composeMediaSelected(this)" />
+            </label>
+            <div id="compose-media-preview" style="font-size:0.8rem;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"></div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+            <span id="compose-char-count" style="font-size:0.75rem;color:var(--text-muted);">0 characters</span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost" onclick="clearCompose()">Clear</button>
+              <button class="btn btn-primary" id="compose-send-btn" onclick="composeSend()">Send Message</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div id="compose-status" style="margin-top:16px;display:none;">
+        <div class="card">
+          <div class="card-body" style="padding:20px;">
+            <div id="compose-status-text" style="font-size:0.85rem;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API = '';
+    let currentView = 'dashboard';
+    let feedData = [];
+    let pollTimer = null;
+
+    // ═══════════════════════════════════════════
+    // Navigation
+    // ═══════════════════════════════════════════
+
+    function showView(view) {
+      currentView = view;
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('view-' + view).classList.add('active');
+      document.querySelector(`[onclick="showView('${view}')"]`).classList.add('active');
+
+      // Load data for the view
+      switch (view) {
+        case 'dashboard': loadDashboard(); break;
+        case 'groups': loadGroups(highlightGroupName); break;
+        case 'questions': loadQuestions('open', document.querySelector('#view-questions .tab')); break;
+        case 'mentions': loadMentions('open', document.querySelector('#view-mentions .tab')); break;
+        case 'dms': loadDMs('open', document.querySelector('#view-dms .tab')); break;
+        case 'tasks': loadTasks('open', document.querySelector('#view-tasks .tab')); break;
+        case 'feed': loadFeed('all'); break;
+        case 'compose': loadComposeGroups(); break;
+        case 'settings': loadSettings(); break;
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // Time Formatting
+    // ═══════════════════════════════════════════
+
+    function timeAgo(ts) {
+      if (!ts) return '';
+      const now = Date.now();
+      const diff = now - ts;
+      if (diff < 60000) return 'just now';
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+      return Math.floor(diff / 86400000) + 'd ago';
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ═══════════════════════════════════════════
+    // Status Polling
+    // ═══════════════════════════════════════════
+
+    async function pollStatus() {
+      try {
+        const res = await fetch(API + '/api/status');
+        const data = await res.json();
+
+        const dot = document.getElementById('sidebar-status-dot');
+        const text = document.getElementById('sidebar-status-text');
+        const settingsStatus = document.getElementById('settings-wa-status');
+
+        dot.className = 'status-dot ' + (data.whatsapp === 'ready' ? 'ready' : data.whatsapp === 'qr' ? 'qr' : 'disconnected');
+
+        const labels = { ready: 'Connected', qr: 'Scan QR', loading: 'Loading...', disconnected: 'Disconnected', failed: 'Failed' };
+        text.textContent = labels[data.whatsapp] || 'Unknown';
+        if (settingsStatus) settingsStatus.textContent = labels[data.whatsapp] || data.whatsapp;
+      } catch (e) {
+        console.error('Poll error:', e);
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // Dashboard
+    // ═══════════════════════════════════════════
+
+    async function loadDashboard() {
+      try {
+        const [dashRes, feedRes, sendersRes, groupsRes, questionsRes, mentionsRes] = await Promise.all([
+          fetch(API + '/api/dashboard'),
+          fetch(API + '/api/feed?limit=200'),
+          fetch(API + '/api/senders/top?limit=10'),
+          fetch(API + '/api/groups'),
+          fetch(API + '/api/questions?status=open'),
+          fetch(API + '/api/mentions')
+        ]);
+
+        const dash = await dashRes.json();
+        const feed = await feedRes.json();
+        const senders = await sendersRes.json();
+        const groups = await groupsRes.json();
+        const questions = await questionsRes.json();
+        const mentionsData = await mentionsRes.json();
+
+        const stats = dash.ok ? dash.stats : {};
+        const feedItems = (feed.ok && feed.feed) ? feed.feed : [];
+        const senderList = (senders.ok && senders.senders) ? senders.senders : [];
+        const groupList = (groups.ok && groups.groups) ? groups.groups : [];
+        const questionList = (questions.ok && questions.questions) ? questions.questions : [];
+        const mentionList = (mentionsData.ok && mentionsData.mentions) ? mentionsData.mentions.filter(m => !m.resolved) : [];
+
+        // Row 1: Smart Stat Cards
+        renderStatCards(stats, questionList, feedItems);
+
+        // Row 2: Group Health Grid
+        renderGroupHealthGrid(groupList);
+
+        // Row 3: Action Queue + Volume Chart
+        renderActionQueue(questionList, mentionList);
+        renderVolumeChart(feedItems);
+
+        // Row 4: Team Activity + Live Feed
+        renderTeamActivity(senderList);
+        renderLiveFeed(feedItems.slice(0, 15));
+
+        // Update sidebar badges
+        updateBadges(stats);
+      } catch (e) {
+        console.error('Dashboard error:', e);
+      }
+    }
+
+    // ── Stat Cards ──
+    function renderStatCards(stats, questions, feedItems) {
+      // Needs Attention (only unresolved items)
+      const openQ = stats.pendingQuestions || 0;
+      const mentions = stats.unresolvedMentions || 0;
+      const dms = stats.unresolvedDMs || 0;
+      const needsAttention = openQ + mentions + dms;
+      document.getElementById('dash-needs-attention').textContent = needsAttention;
+      document.getElementById('dash-attention-detail').textContent =
+        `${openQ} questions · ${mentions} mentions · ${dms} DMs`;
+      const attCard = document.getElementById('dash-card-attention');
+      attCard.classList.toggle('alert', needsAttention > 0);
+      attCard.classList.toggle('ok', needsAttention === 0);
+
+      // Messages Today
+      document.getElementById('dash-today-msgs').textContent = stats.todayMessages || 0;
+      renderSparkline(feedItems);
+
+      // Active Groups
+      const active = stats.activeGroupsToday || 0;
+      const total = stats.totalGroups || 0;
+      document.getElementById('dash-active-groups').textContent = active;
+      document.getElementById('dash-groups-frac').textContent = '/' + total;
+      const pct = total > 0 ? (active / total * 100) : 0;
+      document.getElementById('dash-groups-bar').style.width = pct + '%';
+
+      // Response Rate
+      // We only have open questions from the API; estimate total from feed
+      const totalQ = questions.length + (stats.answeredQuestions || 0);
+      const answered = stats.answeredQuestions || 0;
+      const rate = totalQ > 0 ? Math.round(answered / totalQ * 100) : null;
+      const rateEl = document.getElementById('dash-response-rate');
+      const respCard = document.getElementById('dash-card-response');
+      if (rate !== null) {
+        rateEl.textContent = rate + '%';
+        document.getElementById('dash-response-detail').textContent =
+          `${answered} answered / ${totalQ} total`;
+        respCard.classList.toggle('warn', rate >= 50 && rate < 80);
+        respCard.classList.toggle('bad', rate < 50);
+      } else {
+        rateEl.textContent = '—';
+        document.getElementById('dash-response-detail').textContent = 'No questions yet';
+      }
+
+      // Open Tasks
+      const openTasks = stats.openTasks || 0;
+      const overdueTasks = stats.overdueTasks || 0;
+      document.getElementById('dash-open-tasks').textContent = openTasks;
+      document.getElementById('dash-tasks-detail').textContent =
+        overdueTasks > 0 ? `${overdueTasks} overdue` : 'tasks needing action';
+    }
+
+    function renderSparkline(feedItems) {
+      const container = document.getElementById('dash-sparkline');
+      if (!feedItems || feedItems.length === 0) { container.innerHTML = ''; return; }
+
+      // Bucket last 12 hours
+      const now = Date.now();
+      const buckets = new Array(12).fill(0);
+      feedItems.forEach(item => {
+        if (!item.timestamp) return;
+        const hoursAgo = Math.floor((now - item.timestamp) / 3600000);
+        if (hoursAgo >= 0 && hoursAgo < 12) buckets[11 - hoursAgo]++;
+      });
+
+      const max = Math.max(...buckets, 1);
+      const w = 100 / buckets.length;
+      const points = buckets.map((v, i) => {
+        const x = (i / (buckets.length - 1)) * 100;
+        const y = 22 - (v / max) * 20;
+        return `${x},${y}`;
+      }).join(' ');
+
+      container.innerHTML = `<svg viewBox="0 0 100 24" preserveAspectRatio="none">
+        <polyline points="${points}" fill="none" stroke="var(--info)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="0,24 ${points} 100,24" fill="rgba(52,152,219,0.1)" stroke="none"/>
+      </svg>`;
+    }
+
+    // ── Group Health Grid ──
+    function renderGroupHealthGrid(groups) {
+      const el = document.getElementById('dash-group-health');
+      if (!groups || groups.length === 0) {
+        el.innerHTML = '<div class="empty-state"><p>No groups tracked yet</p></div>';
+        return;
+      }
+
+      // Sort by last_message_time descending
+      const sorted = [...groups].sort((a, b) => (b.last_message_time || 0) - (a.last_message_time || 0));
+      const now = Date.now();
+
+      el.innerHTML = sorted.map(g => {
+        const lastMsg = g.last_message_time || 0;
+        const hoursAgo = lastMsg ? (now - lastMsg) / 3600000 : 999;
+        let dotClass = 'gh-dot-dead';
+        if (hoursAgo < 2) dotClass = 'gh-dot-active';
+        else if (hoursAgo < 8) dotClass = 'gh-dot-quiet';
+        else if (hoursAgo < 24) dotClass = 'gh-dot-silent';
+
+        const msgCount = g.today_count || g.message_count || 0;
+        const name = escapeHtml(g.name || 'Unknown Group');
+        const shortName = name.length > 22 ? name.substring(0, 20) + '...' : name;
+
+        return `<div class="gh-tile" onclick="highlightGroupName='${name.replace(/'/g, "\\'")}'; showView('groups')" title="${name}">
+          <div class="gh-tile-name">${shortName}</div>
+          <div class="gh-tile-meta">
+            <span>${msgCount} msg${msgCount !== 1 ? 's' : ''} today</span>
+            <span class="gh-tile-dot ${dotClass}"></span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ── Urgent Action Queue ──
+    function renderActionQueue(questions, mentions) {
+      const el = document.getElementById('dash-action-queue');
+
+      // Merge questions and unresolved mentions into unified action items
+      const actionItems = [];
+
+      // Add open questions
+      questions.forEach(q => {
+        actionItems.push({
+          type: 'question',
+          id: q.id,
+          sender: q.sender || 'Unknown',
+          group: q.chat_name || q.chat_id || '',
+          body: (q.body || '').substring(0, 120),
+          timestamp: q.timestamp,
+          priority: q.priority || 'normal'
+        });
+      });
+
+      // Add unresolved mentions
+      if (mentions) {
+        mentions.forEach(m => {
+          actionItems.push({
+            type: 'mention',
+            id: m.id,
+            sender: m.sender || 'Unknown',
+            group: m.chat_name || '',
+            body: (m.body || '').substring(0, 120),
+            timestamp: m.timestamp,
+            priority: 'normal'
+          });
+        });
+      }
+
+      // Sort by oldest first (waiting longest for action)
+      actionItems.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      const items = actionItems.slice(0, 10);
+
+      if (items.length === 0) {
+        el.innerHTML = '<div class="empty-state" style="padding:24px;"><div class="icon">✨</div><p>All clear — nothing needs attention right now</p></div>';
+        return;
+      }
+
+      el.innerHTML = items.map(item => {
+        const body = escapeHtml(item.body);
+        const sender = escapeHtml(item.sender);
+        const group = escapeHtml(item.group);
+        const age = timeAgo(item.timestamp);
+        const isQuestion = item.type === 'question';
+        const badgeClass = isQuestion ? 'aq-badge-question' : 'aq-badge-mention';
+        const badgeText = isQuestion ? 'Q' : '@';
+        const viewTarget = isQuestion ? 'questions' : 'mentions';
+
+        const priorityTag = (item.priority === 'urgent' || item.priority === 'high')
+          ? `<span class="tag tag-${item.priority}" style="margin-left:6px;font-size:0.6rem;">${item.priority}</span>`
+          : '';
+
+        const resolveBtn = !isQuestion
+          ? `<button class="aq-btn" style="border-color:var(--accent);color:var(--accent);" onclick="event.stopPropagation(); resolveMention('${item.id}')" title="Mark as handled">✓</button>`
+          : '';
+
+        return `<div class="aq-item" onclick="showView('${viewTarget}')">
+          <span class="aq-badge ${badgeClass}">${badgeText}</span>
+          <div class="aq-body">
+            <div class="aq-sender">${sender}${priorityTag}</div>
+            <div class="aq-group">${group}</div>
+            <div class="aq-text">${body}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            ${resolveBtn}
+            <div class="aq-time">${age}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ── Volume Chart (24h) ──
+    function renderVolumeChart(feedItems) {
+      const el = document.getElementById('dash-volume-chart');
+      if (!feedItems || feedItems.length === 0) {
+        el.innerHTML = '<div class="empty-state"><p>No message data yet</p></div>';
+        return;
+      }
+
+      const now = Date.now();
+      const buckets = new Array(24).fill(0);
+      feedItems.forEach(item => {
+        if (!item.timestamp) return;
+        const hoursAgo = Math.floor((now - item.timestamp) / 3600000);
+        if (hoursAgo >= 0 && hoursAgo < 24) buckets[23 - hoursAgo]++;
+      });
+
+      const max = Math.max(...buckets, 1);
+      const peakVal = Math.max(...buckets);
+
+      el.innerHTML = buckets.map((count, i) => {
+        const height = Math.max(2, (count / max) * 120);
+        const hour = new Date(now - (23 - i) * 3600000).getHours();
+        const label = (i % 3 === 0) ? (hour < 10 ? '0' + hour : hour) : '';
+        const isPeak = count === peakVal && count > 0;
+
+        return `<div class="vc-bar-wrap" title="${count} messages at ${hour}:00" style="cursor:pointer;" onclick="filterFeedByHour(${hour})">
+          <div class="vc-bar${isPeak ? ' peak' : ''}" style="height:${height}px;"></div>
+          <div class="vc-label">${label}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // ── Team Activity ──
+    function renderTeamActivity(senders) {
+      const el = document.getElementById('dash-team-activity');
+      if (!senders || senders.length === 0) {
+        el.innerHTML = '<div class="empty-state"><div class="icon">👤</div><p>No sender data yet</p></div>';
+        return;
+      }
+
+      el.innerHTML = senders.slice(0, 8).map((s, i) => `
+        <div class="ta-item" style="cursor:pointer;" onclick="showSenderInFeed('${escapeHtml(s.sender).replace(/'/g, "\\'")}')">
+          <div class="ta-rank">${i + 1}</div>
+          <div class="ta-info">
+            <div class="ta-name">${escapeHtml(s.sender)}</div>
+            <div class="ta-meta">${timeAgo(s.last_seen)}</div>
+          </div>
+          <div class="ta-count">${s.message_count} <span class="ta-count-label">msgs</span></div>
+        </div>
+      `).join('');
+    }
+
+    // ── Live Activity Feed ──
+    function renderLiveFeed(feedItems) {
+      const el = document.getElementById('dash-recent-feed');
+      if (!feedItems || feedItems.length === 0) {
+        el.innerHTML = '<div class="empty-state"><div class="icon">📡</div><p>Activity will appear here as messages come in</p></div>';
+        return;
+      }
+      el.innerHTML = feedItems.map(item => renderFeedItem(item)).join('');
+    }
+
+    function updateBadges(stats) {
+      if (!stats) return;
+      setBadge('badge-questions', stats.pendingQuestions);
+      setBadge('badge-mentions', stats.unresolvedMentions || stats.totalMentions);
+      setBadge('badge-dms', stats.unresolvedDMs || stats.totalDMs);
+      setBadge('badge-tasks', stats.openTasks || 0);
+    }
+
+    function setBadge(id, count) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (count > 0) {
+        el.style.display = 'inline';
+        el.textContent = count > 99 ? '99+' : count;
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // Feed Item Renderer
+    // ═══════════════════════════════════════════
+
+    function renderFeedItem(item) {
+      const icons = { message: '💬', question: '❓', mention: '@', dm: '📩', task: '✅' };
+      const colors = { message: 'var(--info-dim)', question: 'var(--warning-dim)', mention: 'var(--accent-dim)', dm: 'var(--danger-dim)', task: 'var(--accent-dim)' };
+      const textColors = { message: 'var(--info)', question: 'var(--warning)', mention: 'var(--accent)', dm: 'var(--danger)', task: 'var(--accent)' };
+      const itemJson = JSON.stringify({id:item.id,body:item.body,sender:item.sender,chat_id:item.chat_id,chat_name:item.chat_name}).replace(/"/g, '&quot;');
+
+      return `
+        <div class="list-item" style="position:relative;">
+          <div class="icon" style="background:${colors[item.type] || colors.message};color:${textColors[item.type] || textColors.message}">${icons[item.type] || '💬'}</div>
+          <div class="content">
+            <div class="title">${escapeHtml(item.sender || 'Unknown')}</div>
+            <div class="meta">${escapeHtml(item.chat_name || '')} · ${item.type}</div>
+            <div class="body">${escapeHtml(item.body || '')}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <div class="time">${timeAgo(item.timestamp)}</div>
+            <button class="btn-create-task" onclick="event.stopPropagation(); createTaskFromFeed(${itemJson})" title="Create task from this">✅</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ═══════════════════════════════════════════
+    // Groups
+    // ═══════════════════════════════════════════
+
+    let highlightGroupName = null;
+
+    async function loadGroups(groupName) {
+      if (groupName !== undefined) highlightGroupName = groupName;
+      const el = document.getElementById('groups-list');
+      el.innerHTML = '<div class="loading">Loading groups...</div>';
+
+      try {
+        const res = await fetch(API + '/api/groups');
+        const data = await res.json();
+
+        if (!data.ok || !data.groups || data.groups.length === 0) {
+          // Try live WhatsApp chats as fallback
+          const waRes = await fetch(API + '/api/whatsapp/chats');
+          const waData = await waRes.json();
+
+          if (waData.ok && waData.chats) {
+            const groups = waData.chats.filter(c => c.isGroup);
+            el.innerHTML = groups.map(g => `
+              <div class="list-item">
+                <div class="icon" style="background:var(--info-dim);color:var(--info)">👥</div>
+                <div class="content">
+                  <div class="title">${escapeHtml(g.name)}</div>
+                  <div class="meta">${g.unreadCount || 0} unread</div>
+                </div>
+                <div class="time">${timeAgo(g.timestamp)}</div>
+              </div>
+            `).join('');
+          } else {
+            el.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>No groups tracked yet. Groups will appear as messages come in.</p></div>';
+          }
+          return;
+        }
+
+        // Sort: highlighted group first, then by last_message_time
+        let sorted = [...data.groups];
+        if (highlightGroupName) {
+          sorted.sort((a, b) => {
+            const aMatch = (a.name || '').toLowerCase() === highlightGroupName.toLowerCase();
+            const bMatch = (b.name || '').toLowerCase() === highlightGroupName.toLowerCase();
+            if (aMatch && !bMatch) return -1;
+            if (!aMatch && bMatch) return 1;
+            return (b.last_message_time || 0) - (a.last_message_time || 0);
+          });
+        }
+
+        el.innerHTML = sorted.map(g => {
+          const isHighlighted = highlightGroupName && (g.name || '').toLowerCase() === highlightGroupName.toLowerCase();
+          const highlightStyle = isHighlighted ? 'border-left:3px solid var(--accent);background:var(--accent-dim);' : '';
+          return `<div class="list-item" style="${highlightStyle}" onclick="showGroupInFeed('${escapeHtml(g.name)}')">
+            <div class="icon" style="background:var(--info-dim);color:var(--info)">👥</div>
+            <div class="content">
+              <div class="title">${escapeHtml(g.name)}</div>
+              <div class="meta">${g.message_count || 0} messages · ${(g.members || []).length} members · ${timeAgo(g.last_message_time)}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="time">${timeAgo(g.last_message_time)}</div>
+              <span style="font-size:0.7rem;color:var(--text-muted);">→ feed</span>
+            </div>
+          </div>`;
+        }).join('');
+
+        // Clear highlight after rendering
+        highlightGroupName = null;
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><p>Failed to load groups</p></div>';
+      }
+    }
+
+    // Navigate to Activity Feed filtered by group name
+    function showGroupInFeed(groupName) {
+      feedFilterGroup = groupName;
+      feedFilterSender = null;
+      feedFilterHour = null;
+      showView('feed');
+    }
+
+    // Navigate to Activity Feed filtered by sender
+    function showSenderInFeed(senderName) {
+      feedFilterSender = senderName;
+      feedFilterGroup = null;
+      feedFilterHour = null;
+      showView('feed');
+    }
+
+    // ═══════════════════════════════════════════
+    // Questions (Enhanced v2)
+    // ═══════════════════════════════════════════
+
+    let allQuestionsData = [];
+    let currentQFilter = 'open';
+    let selectedQuestionId = null;
+
+    async function loadQuestions(filter, tabEl) {
+      if (tabEl) {
+        document.querySelectorAll('#view-questions .tab').forEach(t => t.classList.remove('active'));
+        tabEl.classList.add('active');
+      }
+      if (filter) currentQFilter = filter;
+
+      const el = document.getElementById('questions-list');
+      el.innerHTML = '<div class="loading">Loading...</div>';
+
+      try {
+        // Load all questions and filter client-side for flexibility
+        const url = (currentQFilter === 'open') ? API + '/api/questions?status=open' : API + '/api/questions';
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.ok || !data.questions) {
+          el.innerHTML = '<div class="empty-state"><div class="icon">❓</div><p>No questions yet.</p></div>';
+          return;
+        }
+
+        allQuestionsData = data.questions;
+
+        // Apply status filter for answered/dismissed tabs
+        if (currentQFilter === 'answered') {
+          allQuestionsData = allQuestionsData.filter(q => q.status === 'answered');
+        } else if (currentQFilter === 'dismissed') {
+          allQuestionsData = allQuestionsData.filter(q => q.status === 'dismissed');
+        }
+
+        applyQuestionFilters();
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><p>Failed to load questions</p></div>';
+      }
+    }
+
+    function applyQuestionFilters() {
+      const priority = document.getElementById('q-filter-priority').value;
+      const type = document.getElementById('q-filter-type').value;
+      const directed = document.getElementById('q-filter-directed').value;
+
+      let filtered = [...allQuestionsData];
+      if (priority) filtered = filtered.filter(q => q.priority === priority);
+      if (type) filtered = filtered.filter(q => q.question_type === type);
+      if (directed === 'directed') filtered = filtered.filter(q => q.directed_at_me);
+
+      document.getElementById('q-result-count').textContent = `${filtered.length} question${filtered.length !== 1 ? 's' : ''}`;
+      renderQuestionsList(filtered);
+    }
+
+    function renderQuestionsList(questions) {
+      const el = document.getElementById('questions-list');
+
+      if (!questions || questions.length === 0) {
+        el.innerHTML = '<div class="empty-state"><div class="icon">❓</div><p>No questions match your filters.</p></div>';
+        return;
+      }
+
+      el.innerHTML = questions.map(q => {
+        const statusClass = q.status === 'open' ? 'tag-open' : q.status === 'answered' ? 'tag-answered' : 'tag-dismissed';
+        const priorityClass = 'tag-' + (q.priority || 'normal');
+        const isSelected = q.id === selectedQuestionId;
+        const typeLabel = (q.question_type || 'general').replace(/_/g, ' ');
+
+        return `
+          <div class="q-item ${isSelected ? 'selected' : ''}" onclick="selectQuestion('${q.id}')">
+            <div class="q-item-header">
+              <span class="q-item-sender">${escapeHtml(q.sender)}</span>
+              <span class="tag ${statusClass}">${q.status}</span>
+              <span class="tag ${priorityClass}">${q.priority || 'normal'}</span>
+              <span class="tag tag-type">${typeLabel}</span>
+              ${q.directed_at_me ? '<span class="tag tag-group">@ you</span>' : ''}
+              ${q.classified_by === 'ai' ? `<span class="tag" style="background:rgba(139,92,246,0.15);color:#a78bfa;" title="AI confidence: ${Math.round((q.ai_confidence || 0) * 100)}%">🤖 AI${q.ai_intent && q.ai_intent !== 'question' ? ' → ' + q.ai_intent : ''}</span>` : ''}
+              <span style="margin-left:auto;font-size:0.7rem;color:var(--text-muted);">${timeAgo(q.timestamp)}</span>
+            </div>
+            <div class="q-item-group">${escapeHtml(q.chat_name)}</div>
+            <div class="q-item-body">${escapeHtml(q.body)}</div>
+            ${q.status === 'answered' && q.answer_preview ? `
+              <div class="q-item-answer">
+                <strong style="color:var(--accent);">↳ ${escapeHtml(q.answered_by || 'Unknown')}</strong>
+                <span style="font-size:0.75rem;color:var(--text-muted);margin-left:6px;">(${Math.round((q.answer_confidence || 0) * 100)}% confidence)</span>
+                <div style="margin-top:3px;color:var(--text-secondary);">${escapeHtml(q.answer_preview)}</div>
+              </div>
+            ` : ''}
+            <div class="q-item-footer">
+              ${(q.keywords && q.keywords.length > 0) ? q.keywords.slice(0, 4).map(k => `<span style="background:var(--bg-card-hover);padding:1px 6px;border-radius:3px;">${escapeHtml(k)}</span>`).join('') : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function selectQuestion(questionId) {
+      selectedQuestionId = questionId;
+
+      // Highlight in list
+      document.querySelectorAll('.q-item').forEach(el => el.classList.remove('selected'));
+      const clicked = document.querySelector(`.q-item[onclick="selectQuestion('${questionId}')"]`);
+      if (clicked) clicked.classList.add('selected');
+
+      const detail = document.getElementById('q-detail-content');
+      detail.innerHTML = '<div class="loading">Loading thread...</div>';
+
+      try {
+        const res = await fetch(API + `/api/questions/${questionId}/thread`);
+        const data = await res.json();
+
+        if (!data.ok || !data.question) {
+          detail.innerHTML = '<div class="q-detail-empty"><p>Could not load question details.</p></div>';
+          return;
+        }
+
+        const q = data.question;
+        const candidates = data.candidates || [];
+        const context = data.context || [];
+        const statusClass = q.status === 'open' ? 'tag-open' : q.status === 'answered' ? 'tag-answered' : 'tag-dismissed';
+        const typeLabel = (q.question_type || 'general').replace(/_/g, ' ');
+
+        let html = '';
+
+        // Header
+        html += `<div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+            <span class="tag ${statusClass}">${q.status}</span>
+            <span class="tag tag-${q.priority || 'normal'}">${q.priority || 'normal'}</span>
+            <span class="tag tag-type">${typeLabel}</span>
+            ${q.directed_at_me ? '<span class="tag tag-group">@ you</span>' : ''}
+            ${q.manually_resolved ? '<span class="tag" style="background:rgba(147,130,220,0.12);color:#9382dc;">manual</span>' : ''}
+          </div>
+          <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(q.sender)}</div>
+          <div style="font-size:0.78rem;color:var(--text-secondary);">${escapeHtml(q.chat_name)} · ${timeAgo(q.timestamp)}</div>
+          <div style="margin-top:8px;font-size:0.88rem;line-height:1.5;">${escapeHtml(q.body)}</div>
+        </div>`;
+
+        // Context thread — always show
+        const beforeMsgs = context.filter(m => m.is_before).sort((a, b) => a.timestamp - b.timestamp);
+        const afterMsgs = context.filter(m => !m.is_before).sort((a, b) => a.timestamp - b.timestamp);
+        const threadLabel = context.length > 0 ? 'Conversation Thread' : 'No surrounding messages found';
+
+        html += `<div style="padding:10px 20px;border-bottom:1px solid var(--border);font-size:0.78rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">${threadLabel}</div>`;
+
+        for (const m of beforeMsgs) {
+          html += `<div class="q-thread-msg">
+            <div class="q-thread-sender">${escapeHtml(m.sender)}</div>
+            <div class="q-thread-body">${escapeHtml(m.body)}</div>
+            <div class="q-thread-time">${timeAgo(m.timestamp)}</div>
+          </div>`;
+        }
+
+        // The question itself — always highlighted
+        html += `<div class="q-thread-msg is-question">
+          <div class="q-thread-sender">❓ ${escapeHtml(q.sender)}</div>
+          <div class="q-thread-body" style="color:var(--text-primary);font-weight:500;">${escapeHtml(q.body)}</div>
+          <div class="q-thread-time">${timeAgo(q.timestamp)}</div>
+        </div>`;
+
+        for (const m of afterMsgs) {
+          html += `<div class="q-thread-msg">
+            <div class="q-thread-sender">${escapeHtml(m.sender)}</div>
+            <div class="q-thread-body">${escapeHtml(m.body)}</div>
+            <div class="q-thread-time">${timeAgo(m.timestamp)}</div>
+          </div>`;
+        }
+
+        // Answer candidates
+        if (candidates.length > 0) {
+          html += `<div style="padding:10px 20px;border-bottom:1px solid var(--border);font-size:0.78rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">Answer Candidates (${candidates.length})</div>`;
+
+          for (const c of candidates) {
+            const confPct = Math.round(c.confidence * 100);
+            const barColor = c.confidence >= 0.5 ? 'var(--accent)' : c.confidence >= 0.3 ? 'var(--warning)' : 'var(--text-muted)';
+
+            html += `<div class="q-candidate ${c.is_accepted ? 'accepted' : ''}">
+              <div>
+                <div class="q-confidence-bar">
+                  <div class="q-confidence-fill" style="width:${confPct}%;background:${barColor};"></div>
+                </div>
+                <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;text-align:center;">${confPct}%</div>
+              </div>
+              <div class="q-candidate-body">
+                <div style="font-weight:600;font-size:0.82rem;">${escapeHtml(c.sender)}
+                  ${c.is_accepted ? '<span class="tag tag-answered" style="margin-left:4px;">accepted</span>' : ''}
+                  ${c.is_quoted_reply ? '<span class="tag tag-group" style="margin-left:4px;">reply</span>' : ''}
+                </div>
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;line-height:1.4;">${escapeHtml(c.body)}</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);margin-top:3px;">${timeAgo(c.timestamp)}</div>
+                ${!c.is_accepted ? `<button class="btn btn-ghost btn-sm" style="margin-top:4px;" onclick="acceptCandidate('${c.id}', '${questionId}')">✓ Accept as Answer</button>` : ''}
+              </div>
+            </div>`;
+          }
+        }
+
+        // Actions
+        html += `<div class="q-actions">`;
+        if (q.status === 'open') {
+          html += `<button class="btn btn-primary btn-sm" onclick="resolveQuestion('${q.id}')">✓ Mark Answered</button>`;
+          html += `<button class="btn btn-ghost btn-sm" onclick="dismissQuestion('${q.id}')">✕ Dismiss</button>`;
+        } else if (q.status === 'answered' || q.status === 'dismissed') {
+          html += `<button class="btn btn-ghost btn-sm" onclick="reopenQuestion('${q.id}')">↺ Reopen</button>`;
+        }
+        html += `<button class="btn-create-task" onclick="createTaskFromQuestion(${JSON.stringify({id:q.id,body:q.body,sender:q.sender,chat_id:q.chat_id,chat_name:q.chat_name,priority:q.priority}).replace(/"/g,'&quot;')})">✅ Create Task</button>`;
+        html += `</div>`;
+
+        detail.innerHTML = html;
+      } catch (e) {
+        detail.innerHTML = '<div class="q-detail-empty"><p>Error loading thread: ' + escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    async function resolveQuestion(id) {
+      await fetch(API + `/api/questions/${id}/resolve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answeredBy: 'Admin' }) });
+      loadQuestions(currentQFilter);
+      selectQuestion(id);
+    }
+
+    async function dismissQuestion(id) {
+      await fetch(API + `/api/questions/${id}/dismiss`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dismissedBy: 'Admin' }) });
+      loadQuestions(currentQFilter);
+      document.getElementById('q-detail-content').innerHTML = '<div class="q-detail-empty"><div style="font-size:2rem;margin-bottom:8px;">🔍</div><p>Question dismissed.</p></div>';
+    }
+
+    async function reopenQuestion(id) {
+      await fetch(API + `/api/questions/${id}/reopen`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      loadQuestions(currentQFilter);
+      selectQuestion(id);
+    }
+
+    async function acceptCandidate(candidateId, questionId) {
+      await fetch(API + `/api/answers/${candidateId}/accept`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      loadQuestions(currentQFilter);
+      selectQuestion(questionId);
+    }
+
+    // ═══════════════════════════════════════════
+    // Mentions
+    // ═══════════════════════════════════════════
+
+    let mentionFilter = 'open';
+
+    async function loadMentions(filter, tabEl) {
+      if (filter) mentionFilter = filter;
+      if (tabEl) {
+        document.querySelectorAll('#view-mentions .tab').forEach(t => t.classList.remove('active'));
+        tabEl.classList.add('active');
+      }
+
+      const el = document.getElementById('mentions-list');
+      el.innerHTML = '<div class="loading">Loading...</div>';
+
+      try {
+        const res = await fetch(API + '/api/mentions');
+        const data = await res.json();
+
+        if (!data.ok || !data.mentions || data.mentions.length === 0) {
+          el.innerHTML = '<div class="empty-state"><div class="icon">@</div><p>No mentions yet. Set your name in Settings, and mentions will appear when someone says it.</p></div>';
+          return;
+        }
+
+        // Filter based on tab
+        let filtered = data.mentions;
+        if (mentionFilter === 'open') {
+          filtered = filtered.filter(m => !m.resolved);
+        } else if (mentionFilter === 'resolved') {
+          filtered = filtered.filter(m => m.resolved);
+        }
+
+        if (filtered.length === 0) {
+          const msg = mentionFilter === 'open' ? 'All mentions have been handled!' : 'No resolved mentions yet.';
+          el.innerHTML = `<div class="empty-state"><div class="icon">${mentionFilter === 'open' ? '✨' : '@'}</div><p>${msg}</p></div>`;
+          return;
+        }
+
+        el.innerHTML = filtered.map(m => {
+          const isResolved = m.resolved;
+          const resolveBtn = isResolved
+            ? `<button class="aq-btn" onclick="event.stopPropagation(); unresolveMention('${m.id}')" title="Reopen">↩ Reopen</button>`
+            : `<button class="aq-btn" style="border-color:var(--accent);color:var(--accent);" onclick="event.stopPropagation(); resolveMention('${m.id}')" title="Mark as handled">✓ Handled</button>`;
+          const resolvedTag = isResolved
+            ? `<span class="tag tag-answered" style="margin-left:6px;">resolved</span>`
+            : '';
+
+          return `<div class="list-item" style="${isResolved ? 'opacity:0.6;' : ''}">
+            <div class="icon" style="background:var(--accent-dim);color:var(--accent)">@</div>
+            <div class="content">
+              <div class="title">${escapeHtml(m.sender)}${resolvedTag}</div>
+              <div class="meta">${escapeHtml(m.chat_name)} · ${timeAgo(m.timestamp)}</div>
+              <div class="body">${escapeHtml(m.body)}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+              <div class="time">${timeAgo(m.timestamp)}</div>
+              ${resolveBtn}
+            </div>
+          </div>`;
+        }).join('');
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><p>Failed to load mentions</p></div>';
+      }
+    }
+
+    async function resolveMention(id) {
+      try {
+        await fetch(API + '/api/mentions/' + id + '/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        loadMentions();
+        loadDashboard();
+      } catch (e) { console.error('Resolve mention error:', e); }
+    }
+
+    async function unresolveMention(id) {
+      try {
+        await fetch(API + '/api/mentions/' + id + '/unresolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        loadMentions();
+        loadDashboard();
+      } catch (e) { console.error('Unresolve mention error:', e); }
+    }
+
+    // ═══════════════════════════════════════════
+    // DMs
+    // ═══════════════════════════════════════════
+
+    let dmFilter = 'open';
+
+    async function loadDMs(filter, tabEl) {
+      if (filter) dmFilter = filter;
+      if (tabEl) {
+        document.querySelectorAll('#view-dms .tab').forEach(t => t.classList.remove('active'));
+        tabEl.classList.add('active');
+      }
+
+      const el = document.getElementById('dms-list');
+      el.innerHTML = '<div class="loading">Loading...</div>';
+
+      try {
+        const res = await fetch(API + '/api/dms');
+        const data = await res.json();
+
+        if (!data.ok || !data.dms || data.dms.length === 0) {
+          el.innerHTML = '<div class="empty-state"><div class="icon">💬</div><p>No direct messages yet.</p></div>';
+          return;
+        }
+
+        // Filter based on tab
+        let filtered = data.dms;
+        if (dmFilter === 'open') {
+          filtered = filtered.filter(d => !d.resolved);
+        } else if (dmFilter === 'resolved') {
+          filtered = filtered.filter(d => d.resolved);
+        }
+
+        if (filtered.length === 0) {
+          const msg = dmFilter === 'open' ? 'All DMs have been handled!' : 'No resolved DMs yet.';
+          el.innerHTML = `<div class="empty-state"><div class="icon">${dmFilter === 'open' ? '✨' : '💬'}</div><p>${msg}</p></div>`;
+          return;
+        }
+
+        el.innerHTML = filtered.map(dm => {
+          const isResolved = dm.resolved;
+          const resolveBtn = isResolved
+            ? `<button class="aq-btn" onclick="event.stopPropagation(); unresolveDM('${dm.id}')" title="Reopen">↩ Reopen</button>`
+            : `<button class="aq-btn" style="border-color:var(--accent);color:var(--accent);" onclick="event.stopPropagation(); resolveDM('${dm.id}')" title="Mark as handled">✓ Handled</button>`;
+          const resolvedTag = isResolved
+            ? `<span class="tag tag-answered" style="margin-left:6px;">resolved</span>`
+            : '';
+
+          return `<div class="list-item" style="${isResolved ? 'opacity:0.6;' : ''}">
+            <div class="icon" style="background:var(--danger-dim);color:var(--danger)">${dm.from_me ? '↗️' : '📩'}</div>
+            <div class="content">
+              <div class="title">${escapeHtml(dm.sender)} ${dm.from_me ? '<span class="tag tag-group">sent</span>' : ''}${resolvedTag}</div>
+              <div class="meta">${escapeHtml(dm.chat_name)} · ${timeAgo(dm.timestamp)}</div>
+              <div class="body">${escapeHtml(dm.body)}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+              <div class="time">${timeAgo(dm.timestamp)}</div>
+              ${resolveBtn}
+            </div>
+          </div>`;
+        }).join('');
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><p>Failed to load DMs</p></div>';
+      }
+    }
+
+    async function resolveDM(id) {
+      try {
+        await fetch(API + '/api/dms/' + id + '/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        loadDMs();
+        loadDashboard();
+      } catch (e) { console.error('Resolve DM error:', e); }
+    }
+
+    async function unresolveDM(id) {
+      try {
+        await fetch(API + '/api/dms/' + id + '/unresolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        loadDMs();
+        loadDashboard();
+      } catch (e) { console.error('Unresolve DM error:', e); }
+    }
+
+    // ═══════════════════════════════════════════
+    // Activity Feed
+    // ═══════════════════════════════════════════
+
+    let feedFilterGroup = null;
+    let feedFilterSender = null;
+
+    async function loadFeed(type, tabEl) {
+      if (tabEl) {
+        document.querySelectorAll('#view-feed .tab').forEach(t => t.classList.remove('active'));
+        tabEl.classList.add('active');
+        // Clicking a tab clears any deep-link filters
+        feedFilterGroup = null;
+        feedFilterSender = null;
+        feedFilterHour = null;
+      }
+
+      const el = document.getElementById('feed-list');
+      el.innerHTML = '<div class="loading">Loading...</div>';
+
+      // Show active filter banner if filtering by group, sender, or hour
+      const filterBanner = document.getElementById('feed-filter-banner');
+      if (feedFilterGroup || feedFilterSender || feedFilterHour !== null) {
+        const label = feedFilterGroup ? `group: ${feedFilterGroup}` : feedFilterSender ? `sender: ${feedFilterSender}` : `hour: ${feedFilterHour}:00`;
+        if (filterBanner) {
+          filterBanner.innerHTML = `<span>Filtered by <strong>${escapeHtml(label)}</strong></span><button class="aq-btn" onclick="clearFeedFilter()" style="margin-left:8px;">✕ Clear</button>`;
+          filterBanner.style.display = 'flex';
+        }
+      } else if (filterBanner) {
+        filterBanner.style.display = 'none';
+      }
+
+      try {
+        const res = await fetch(API + '/api/feed?limit=200');
+        const data = await res.json();
+
+        if (!data.ok || !data.feed || data.feed.length === 0) {
+          el.innerHTML = '<div class="empty-state"><div class="icon">📡</div><p>No activity yet. Messages will stream in as they arrive.</p></div>';
+          return;
+        }
+
+        feedData = data.feed;
+        let filtered = type === 'all' ? feedData : feedData.filter(f => f.type === type);
+
+        // Apply deep-link filters from dashboard
+        if (feedFilterGroup) {
+          filtered = filtered.filter(f => (f.chat_name || '').toLowerCase() === feedFilterGroup.toLowerCase());
+        }
+        if (feedFilterSender) {
+          filtered = filtered.filter(f => (f.sender || '').toLowerCase() === feedFilterSender.toLowerCase());
+        }
+        if (feedFilterHour !== null) {
+          filtered = filtered.filter(f => {
+            if (!f.timestamp) return false;
+            return new Date(f.timestamp).getHours() === feedFilterHour;
+          });
+        }
+
+        if (filtered.length === 0) {
+          const hasFilter = feedFilterGroup || feedFilterSender || feedFilterHour !== null;
+          const filterNote = hasFilter ? ' matching this filter' : '';
+          el.innerHTML = `<div class="empty-state"><p>No ${type === 'all' ? '' : type + ' '}activity${filterNote}</p></div>`;
+          return;
+        }
+
+        el.innerHTML = filtered.map(item => renderFeedItem(item)).join('');
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><p>Failed to load feed</p></div>';
+      }
+    }
+
+    function clearFeedFilter() {
+      feedFilterGroup = null;
+      feedFilterSender = null;
+      feedFilterHour = null;
+      loadFeed('all');
+    }
+
+    let feedFilterHour = null;
+
+    function filterFeedByHour(hour) {
+      feedFilterHour = hour;
+      feedFilterGroup = null;
+      feedFilterSender = null;
+      showView('feed');
+    }
+
+    // ═══════════════════════════════════════════
+    // Settings
+    // ═══════════════════════════════════════════
+
+    async function loadSettings() {
+      try {
+        // Load track name from dashboard (settings endpoint)
+        const [pgRes, staffRes] = await Promise.all([
+          fetch(API + '/api/settings/partner-groups'),
+          fetch(API + '/api/settings/staff')
+        ]);
+
+        const pgData = await pgRes.json();
+        const staffData = await staffRes.json();
+
+        if (pgData.ok) renderChips('partner-chips', pgData.groups, removePartnerGroup);
+        if (staffData.ok) renderChips('staff-chips', staffData.staff, removeStaffMember);
+
+        // Load AI stats
+        loadAIStats();
+
+        // Check if backfill is running
+        checkBackfillStatus();
+      } catch (e) {
+        console.error('Settings load error:', e);
+      }
+    }
+
+    let backfillPollTimer = null;
+
+    async function startBackfill() {
+      const btn = document.getElementById('btn-backfill');
+      const limit = document.getElementById('backfill-limit').value;
+      btn.disabled = true;
+      btn.textContent = 'Starting...';
+
+      try {
+        const res = await fetch(API + '/api/backfill?limit=' + limit, { method: 'POST' });
+        const data = await res.json();
+
+        if (data.ok) {
+          document.getElementById('backfill-progress').style.display = 'block';
+          btn.textContent = 'Backfill Running...';
+          // Start polling for progress
+          pollBackfillStatus();
+        } else {
+          btn.textContent = data.error || 'Error';
+          btn.disabled = false;
+          setTimeout(() => { btn.textContent = 'Start Backfill'; }, 3000);
+        }
+      } catch (e) {
+        btn.textContent = 'Error: ' + e.message;
+        btn.disabled = false;
+        setTimeout(() => { btn.textContent = 'Start Backfill'; }, 3000);
+      }
+    }
+
+    function pollBackfillStatus() {
+      if (backfillPollTimer) clearInterval(backfillPollTimer);
+      backfillPollTimer = setInterval(async () => {
+        await checkBackfillStatus();
+      }, 1500);
+    }
+
+    async function checkBackfillStatus() {
+      try {
+        const res = await fetch(API + '/api/backfill/status');
+        const data = await res.json();
+        if (!data.ok || !data.progress) return;
+
+        const p = data.progress;
+        const progressDiv = document.getElementById('backfill-progress');
+        const btn = document.getElementById('btn-backfill');
+
+        if (p.status === 'running') {
+          progressDiv.style.display = 'block';
+          btn.disabled = true;
+          btn.textContent = 'Backfill Running...';
+
+          const pct = p.totalChats > 0 ? Math.round((p.processedChats / p.totalChats) * 100) : 0;
+          document.getElementById('bf-status').textContent = 'Running...';
+          document.getElementById('bf-chat-progress').textContent = `${p.processedChats || 0} / ${p.totalChats || 0} chats`;
+          document.getElementById('bf-progress-bar').style.width = pct + '%';
+          document.getElementById('bf-current-chat').textContent = p.currentChat ? `Processing: ${p.currentChat}` : '';
+          document.getElementById('bf-new').textContent = p.newMessages || 0;
+          document.getElementById('bf-questions').textContent = p.questions || 0;
+          document.getElementById('bf-mentions').textContent = p.mentions || 0;
+          document.getElementById('bf-dupes').textContent = p.skippedDuplicates || 0;
+
+          if (!backfillPollTimer) pollBackfillStatus();
+        } else if (p.status === 'complete') {
+          progressDiv.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Start Backfill';
+
+          document.getElementById('bf-status').textContent = 'Complete!';
+          document.getElementById('bf-status').style.color = '#22c55e';
+          document.getElementById('bf-chat-progress').textContent = `${p.processedChats || 0} / ${p.totalChats || 0} chats`;
+          document.getElementById('bf-progress-bar').style.width = '100%';
+          document.getElementById('bf-current-chat').textContent = '';
+          document.getElementById('bf-new').textContent = p.newMessages || 0;
+          document.getElementById('bf-questions').textContent = p.questions || 0;
+          document.getElementById('bf-mentions').textContent = p.mentions || 0;
+          document.getElementById('bf-dupes').textContent = p.skippedDuplicates || 0;
+
+          if (backfillPollTimer) { clearInterval(backfillPollTimer); backfillPollTimer = null; }
+          // Refresh dashboard data
+          loadDashboard();
+        } else if (p.status === 'error') {
+          document.getElementById('bf-status').textContent = 'Error: ' + (p.error || 'Unknown');
+          document.getElementById('bf-status').style.color = '#ef4444';
+          btn.disabled = false;
+          btn.textContent = 'Start Backfill';
+          if (backfillPollTimer) { clearInterval(backfillPollTimer); backfillPollTimer = null; }
+        }
+      } catch (e) {
+        // Silently ignore poll errors
+      }
+    }
+
+    async function loadAIStats() {
+      try {
+        const res = await fetch(API + '/api/ai/stats');
+        const data = await res.json();
+        if (!data.ok) return;
+
+        const s = data.stats;
+        const badge = document.getElementById('ai-status-badge');
+
+        if (s.classifier?.enabled) {
+          badge.textContent = 'Active';
+          badge.style.background = '#22c55e';
+          badge.style.color = '#fff';
+        } else {
+          badge.textContent = 'Disabled';
+          badge.style.background = 'var(--text-muted)';
+          badge.style.color = '#fff';
+        }
+
+        document.getElementById('ai-stat-calls').textContent = s.classifier?.apiCalls ?? 0;
+        document.getElementById('ai-stat-classified').textContent = s.classifier?.classified ?? 0;
+        document.getElementById('ai-stat-dismissed').textContent = s.aiDismissedFalsePositives ?? 0;
+        document.getElementById('ai-stat-queue').textContent = s.classifier?.queueLength ?? 0;
+      } catch (e) {
+        console.error('AI stats error:', e);
+      }
+    }
+
+    async function runAIReclassify() {
+      const btn = document.getElementById('btn-ai-reclassify');
+      btn.disabled = true;
+      btn.textContent = 'Classifying...';
+      try {
+        const res = await fetch(API + '/api/ai/reclassify', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          btn.textContent = `Done! ${data.classified} classified, ${data.promoted} new questions found`;
+          setTimeout(() => { btn.textContent = 'Reclassify Unprocessed Messages'; btn.disabled = false; }, 4000);
+          loadAIStats();
+        } else {
+          btn.textContent = data.error || 'Error';
+          setTimeout(() => { btn.textContent = 'Reclassify Unprocessed Messages'; btn.disabled = false; }, 3000);
+        }
+      } catch (e) {
+        btn.textContent = 'Error: ' + e.message;
+        setTimeout(() => { btn.textContent = 'Reclassify Unprocessed Messages'; btn.disabled = false; }, 3000);
+      }
+    }
+
+    async function testAIClassify() {
+      const msg = prompt('Enter a WhatsApp message to classify:');
+      if (!msg) return;
+      const resultDiv = document.getElementById('ai-test-result');
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<span style="color:var(--text-muted);">Classifying...</span>';
+      try {
+        const res = await fetch(API + '/api/ai/classify-one', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: msg, sender: 'Test User', chatName: 'Test Group' })
+        });
+        const data = await res.json();
+        if (data.ok && data.result) {
+          const r = data.result;
+          resultDiv.innerHTML = `
+            <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:0.8rem;">
+              <div><strong>Message:</strong> "${escapeHtml(msg)}"</div>
+              <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+                <span class="badge" style="background:${r.intent === 'question' ? '#ef4444' : r.isActionable ? '#f59e0b' : '#22c55e'};color:#fff;">
+                  ${r.intent}${r.questionType ? ' → ' + r.questionType : ''}
+                </span>
+                <span class="badge">Priority: ${r.priority}</span>
+                <span class="badge">Confidence: ${(r.confidence * 100).toFixed(0)}%</span>
+                <span class="badge">${r.isActionable ? '⚡ Actionable' : '📋 Informational'}</span>
+              </div>
+              ${r.summary ? `<div style="margin-top:4px;color:var(--text-secondary);">Summary: ${escapeHtml(r.summary)}</div>` : ''}
+            </div>`;
+        } else {
+          resultDiv.innerHTML = `<span style="color:#ef4444;">${data.error || 'Classification failed'}</span>`;
+        }
+      } catch (e) {
+        resultDiv.innerHTML = `<span style="color:#ef4444;">Error: ${e.message}</span>`;
+      }
+    }
+
+    function renderChips(containerId, items, removeFn) {
+      const el = document.getElementById(containerId);
+      if (!items || items.length === 0) {
+        el.innerHTML = '<span style="font-size:0.75rem;color:var(--text-muted);">None configured</span>';
+        return;
+      }
+      el.innerHTML = items.map(item => `
+        <span class="chip">${escapeHtml(item)} <span class="remove" onclick="${removeFn.name}('${escapeHtml(item)}')">&times;</span></span>
+      `).join('');
+    }
+
+    async function saveTrackName() {
+      const name = document.getElementById('setting-track-name').value.trim();
+      if (!name) return;
+      await fetch(API + '/api/setup/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackName: name })
+      });
+      alert('Track name saved: ' + name);
+    }
+
+    async function addPartnerGroup() {
+      const input = document.getElementById('setting-partner-input');
+      const name = input.value.trim();
+      if (!name) return;
+      await fetch(API + '/api/settings/partner-groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      input.value = '';
+      loadSettings();
+    }
+
+    async function removePartnerGroup(name) {
+      await fetch(API + '/api/settings/partner-groups', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      loadSettings();
+    }
+
+    async function addStaffMember() {
+      const input = document.getElementById('setting-staff-input');
+      const name = input.value.trim();
+      if (!name) return;
+      await fetch(API + '/api/settings/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      input.value = '';
+      loadSettings();
+    }
+
+    async function removeStaffMember(name) {
+      await fetch(API + '/api/settings/staff', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      loadSettings();
+    }
+
+    async function reconnectWhatsApp() {
+      if (!confirm('Reconnect WhatsApp? This will require scanning the QR code again.')) return;
+      await fetch(API + '/api/reconnect', { method: 'POST' });
+      alert('Reconnecting... check for QR code.');
+    }
+
+    async function runSetup() {
+      const name = prompt('Enter your name (for mention tracking):');
+      if (!name) return;
+      document.getElementById('setting-track-name').value = name;
+
+      await fetch(API + '/api/setup/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trackName: name,
+          partnerGroups: [
+            'Blue Team', 'Gold Team', 'Lime Team', 'Magenta Team',
+            'Obsidian Team', 'Orange Team', 'Peach Team', 'Pearl Team',
+            'Purple Team', 'Red Team', 'Rose Team', 'SSF - Green Team',
+            'Teal Team', 'Yellow Team', 'Amazon Onboarding Group',
+            'SSF - Coffee Group', 'The Originals (Team 12)'
+          ]
+        })
+      });
+
+      alert('Setup complete! Your name and default partner groups have been configured.');
+      loadSettings();
+    }
+
+    // ═══════════════════════════════════════════
+    // Compose
+    // ═══════════════════════════════════════════
+
+    let allGroups = [];           // { id, name } — all WhatsApp groups
+    let selectedRecipients = [];  // { id, name } — chosen recipients
+    let composeMediaFile = null;  // File object
+    let composeTemplates = [];    // { name, body, updated }
+    let partnerGroupNames = [];   // from settings
+
+    async function loadComposeGroups() {
+      try {
+        // Fetch groups + partner names + templates in parallel
+        const [waRes, pgRes, tplRes] = await Promise.all([
+          fetch(API + '/api/whatsapp/chats'),
+          fetch(API + '/api/settings/partner-groups'),
+          fetch(API + '/api/templates')
+        ]);
+        const waData = await waRes.json();
+        const pgData = await pgRes.json();
+        const tplData = await tplRes.json();
+
+        if (waData.ok && waData.chats) {
+          allGroups = waData.chats
+            .filter(c => c.isGroup)
+            .map(g => ({ id: g.id._serialized || g.id, name: g.name }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        if (pgData.ok) partnerGroupNames = pgData.groups || [];
+        if (tplData.ok) composeTemplates = tplData.templates || [];
+
+        renderSelectedChips();
+        renderComposeTemplates();
+      } catch (e) {
+        console.error('Compose load error:', e);
+      }
+
+      // Wire up char counter + close dropdown on outside click
+      const msgEl = document.getElementById('compose-message');
+      msgEl.removeEventListener('input', updateCharCount);
+      msgEl.addEventListener('input', updateCharCount);
+
+      document.removeEventListener('click', closeComposeDropdown);
+      document.addEventListener('click', closeComposeDropdown);
+    }
+
+    function closeComposeDropdown(e) {
+      const input = document.getElementById('compose-group-input');
+      const dropdown = document.getElementById('compose-autocomplete-dropdown');
+      if (input && dropdown && !input.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
+    }
+
+    function updateCharCount() {
+      const msg = document.getElementById('compose-message').value;
+      document.getElementById('compose-char-count').textContent = msg.length + ' characters';
+    }
+
+    // ── Text Formatting ──
+
+    function composeWrap(marker) {
+      const ta = document.getElementById('compose-message');
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const text = ta.value;
+      const selected = text.substring(start, end);
+
+      if (selected) {
+        // Wrap selection
+        const wrapped = marker + selected + marker;
+        ta.value = text.substring(0, start) + wrapped + text.substring(end);
+        ta.selectionStart = start + marker.length;
+        ta.selectionEnd = end + marker.length;
+      } else {
+        // Insert markers and place cursor between them
+        ta.value = text.substring(0, start) + marker + marker + text.substring(end);
+        ta.selectionStart = ta.selectionEnd = start + marker.length;
+      }
+      ta.focus();
+      updateCharCount();
+    }
+
+    function composeInsertAt(str) {
+      const ta = document.getElementById('compose-message');
+      const start = ta.selectionStart;
+      const text = ta.value;
+      ta.value = text.substring(0, start) + str + text.substring(start);
+      ta.selectionStart = ta.selectionEnd = start + str.length;
+      ta.focus();
+      updateCharCount();
+    }
+
+    function composeInsertBullets() {
+      const ta = document.getElementById('compose-message');
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const text = ta.value;
+      const selected = text.substring(start, end);
+
+      if (selected) {
+        // Convert selected lines to bullets
+        const bulleted = selected.split('\n').map(line => line.trim() ? '• ' + line.trim() : '').join('\n');
+        ta.value = text.substring(0, start) + bulleted + text.substring(end);
+      } else {
+        // Insert a bullet template
+        const bullet = '\n• ';
+        ta.value = text.substring(0, start) + bullet + text.substring(start);
+        ta.selectionStart = ta.selectionEnd = start + bullet.length;
+      }
+      ta.focus();
+      updateCharCount();
+    }
+
+    function composeInsertNumbered() {
+      const ta = document.getElementById('compose-message');
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const text = ta.value;
+      const selected = text.substring(start, end);
+
+      if (selected) {
+        const numbered = selected.split('\n').map((line, i) => line.trim() ? `${i + 1}. ${line.trim()}` : '').join('\n');
+        ta.value = text.substring(0, start) + numbered + text.substring(end);
+      } else {
+        const num = '\n1. ';
+        ta.value = text.substring(0, start) + num + text.substring(start);
+        ta.selectionStart = ta.selectionEnd = start + num.length;
+      }
+      ta.focus();
+      updateCharCount();
+    }
+
+    function composeUppercase() {
+      const ta = document.getElementById('compose-message');
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      if (start === end) return;
+      const text = ta.value;
+      ta.value = text.substring(0, start) + text.substring(start, end).toUpperCase() + text.substring(end);
+      ta.selectionStart = start;
+      ta.selectionEnd = end;
+      ta.focus();
+      updateCharCount();
+    }
+
+    function composeLowercase() {
+      const ta = document.getElementById('compose-message');
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      if (start === end) return;
+      const text = ta.value;
+      ta.value = text.substring(0, start) + text.substring(start, end).toLowerCase() + text.substring(end);
+      ta.selectionStart = start;
+      ta.selectionEnd = end;
+      ta.focus();
+      updateCharCount();
+    }
+
+    // ── Autocomplete ──
+
+    function composeAutocomplete() {
+      const input = document.getElementById('compose-group-input');
+      const dropdown = document.getElementById('compose-autocomplete-dropdown');
+      const q = input.value.toLowerCase().trim();
+
+      // Filter out already-selected groups
+      const selectedIds = new Set(selectedRecipients.map(r => r.id));
+      let matches = allGroups.filter(g => !selectedIds.has(g.id));
+
+      if (q) {
+        matches = matches.filter(g => g.name.toLowerCase().includes(q));
+      }
+
+      if (matches.length === 0) {
+        dropdown.innerHTML = '<div style="padding:10px 14px;font-size:0.8rem;color:var(--text-muted);">No matching groups</div>';
+        dropdown.style.display = 'block';
+        return;
+      }
+
+      // Show max 10 results
+      dropdown.innerHTML = matches.slice(0, 10).map(g => `
+        <div class="compose-ac-item" style="padding:10px 14px;cursor:pointer;font-size:0.85rem;border-bottom:1px solid var(--border);transition:background 0.1s;"
+             onmouseenter="this.style.background='var(--bg-card-hover)'"
+             onmouseleave="this.style.background='transparent'"
+             onclick="composeAddRecipient('${g.id}', '${escapeHtml(g.name).replace(/'/g, "\\'")}')">
+          <span style="color:var(--info);margin-right:6px;">👥</span> ${escapeHtml(g.name)}
+        </div>
+      `).join('');
+
+      if (matches.length > 10) {
+        dropdown.innerHTML += `<div style="padding:8px 14px;font-size:0.75rem;color:var(--text-muted);">...and ${matches.length - 10} more. Keep typing to narrow down.</div>`;
+      }
+
+      dropdown.style.display = 'block';
+    }
+
+    function composeAddRecipient(id, name) {
+      if (selectedRecipients.find(r => r.id === id)) return;
+      selectedRecipients.push({ id, name });
+      document.getElementById('compose-group-input').value = '';
+      document.getElementById('compose-autocomplete-dropdown').style.display = 'none';
+      renderSelectedChips();
+    }
+
+    function composeRemoveRecipient(id) {
+      selectedRecipients = selectedRecipients.filter(r => r.id !== id);
+      renderSelectedChips();
+    }
+
+    function composeClearRecipients() {
+      selectedRecipients = [];
+      renderSelectedChips();
+    }
+
+    function renderSelectedChips() {
+      const el = document.getElementById('compose-selected-chips');
+      const countEl = document.getElementById('compose-selected-count');
+      const btn = document.getElementById('compose-send-btn');
+
+      if (selectedRecipients.length === 0) {
+        el.innerHTML = '<span style="font-size:0.75rem;color:var(--text-muted);">No groups selected — type above to add</span>';
+      } else {
+        el.innerHTML = selectedRecipients.map(r => `
+          <span class="chip" style="background:var(--accent-dim);color:var(--accent);">
+            ${escapeHtml(r.name)}
+            <span class="remove" onclick="composeRemoveRecipient('${r.id}')">&times;</span>
+          </span>
+        `).join('');
+      }
+
+      countEl.textContent = selectedRecipients.length;
+      btn.textContent = selectedRecipients.length <= 1 ? 'Send Message' : `Broadcast to ${selectedRecipients.length} Groups`;
+    }
+
+    // ── All Partner Groups ──
+
+    function composeAddPartnerGroups() {
+      if (partnerGroupNames.length === 0) {
+        showComposeStatus('No partner groups configured. Add them in Settings first.', true);
+        return;
+      }
+
+      const nameLower = partnerGroupNames.map(n => n.toLowerCase());
+      const matching = allGroups.filter(g => nameLower.includes(g.name.toLowerCase()));
+      const selectedIds = new Set(selectedRecipients.map(r => r.id));
+
+      let added = 0;
+      for (const g of matching) {
+        if (!selectedIds.has(g.id)) {
+          selectedRecipients.push({ id: g.id, name: g.name });
+          added++;
+        }
+      }
+
+      renderSelectedChips();
+      if (added > 0) {
+        showComposeStatus(`Added ${added} partner group(s). ${matching.length} total matched.`, false);
+      } else if (matching.length > 0) {
+        showComposeStatus('All partner groups already selected.', false);
+      } else {
+        showComposeStatus('No partner groups found in your WhatsApp chats. Check Settings.', true);
+      }
+    }
+
+    // ── Media ──
+
+    function composeMediaSelected(input) {
+      const preview = document.getElementById('compose-media-preview');
+      if (input.files && input.files[0]) {
+        composeMediaFile = input.files[0];
+        const sizeMB = (composeMediaFile.size / (1024 * 1024)).toFixed(1);
+        preview.innerHTML = `
+          <span>📄 ${escapeHtml(composeMediaFile.name)} (${sizeMB} MB)</span>
+          <span class="remove" onclick="composeRemoveMedia()" style="cursor:pointer;color:var(--danger);font-size:1rem;">&times;</span>
+        `;
+      }
+    }
+
+    function composeRemoveMedia() {
+      composeMediaFile = null;
+      document.getElementById('compose-media-input').value = '';
+      document.getElementById('compose-media-preview').innerHTML = '';
+    }
+
+    // ── Templates ──
+
+    function renderComposeTemplates() {
+      const select = document.getElementById('compose-template-select');
+      // Preserve current selection if possible
+      const currentVal = select.value;
+      select.innerHTML = '<option value="">-- Select a template --</option>';
+      if (composeTemplates && composeTemplates.length > 0) {
+        for (const t of composeTemplates) {
+          const opt = document.createElement('option');
+          opt.value = t.name;
+          opt.textContent = t.name;
+          select.appendChild(opt);
+        }
+      }
+      if (currentVal) select.value = currentVal;
+    }
+
+    function composeLoadSelectedTemplate() {
+      const select = document.getElementById('compose-template-select');
+      const name = select.value;
+      if (!name) {
+        showComposeStatus('Select a template from the dropdown first.', true);
+        return;
+      }
+      const tpl = composeTemplates.find(t => t.name === name);
+      if (tpl) {
+        document.getElementById('compose-message').value = tpl.body;
+        updateCharCount();
+        showComposeStatus(`Template "${escapeHtml(name)}" loaded.`, false);
+      }
+    }
+
+    function composeDeleteSelectedTemplate() {
+      const select = document.getElementById('compose-template-select');
+      const name = select.value;
+      if (!name) {
+        showComposeStatus('Select a template from the dropdown first.', true);
+        return;
+      }
+      composeDeleteTemplate(name);
+    }
+
+    async function composeSaveTemplate() {
+      const body = document.getElementById('compose-message').value.trim();
+      const nameInput = document.getElementById('compose-template-name');
+      const name = nameInput.value.trim();
+
+      if (!body) {
+        showComposeStatus('Type a message first, then save it as a template.', true);
+        return;
+      }
+      if (!name) {
+        showComposeStatus('Enter a template name before saving.', true);
+        nameInput.focus();
+        return;
+      }
+
+      try {
+        const res = await fetch(API + '/api/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, body })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          composeTemplates = data.templates;
+          renderComposeTemplates();
+          nameInput.value = '';
+          showComposeStatus(`Template "${escapeHtml(name)}" saved.`, false);
+        }
+      } catch (e) {
+        showComposeStatus('Failed to save template: ' + e.message, true);
+      }
+    }
+
+    async function composeDeleteTemplate(name) {
+      try {
+        const res = await fetch(API + '/api/templates', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          composeTemplates = data.templates;
+          renderComposeTemplates();
+        }
+      } catch (e) {
+        console.error('Delete template error:', e);
+      }
+    }
+
+    // ── Send / Broadcast ──
+
+    function clearCompose() {
+      document.getElementById('compose-message').value = '';
+      document.getElementById('compose-char-count').textContent = '0 characters';
+      composeClearRecipients();
+      composeRemoveMedia();
+      hideComposeStatus();
+    }
+
+    function showComposeStatus(msg, isError) {
+      const el = document.getElementById('compose-status');
+      const text = document.getElementById('compose-status-text');
+      el.style.display = 'block';
+      text.innerHTML = msg;
+      text.style.color = isError ? 'var(--danger)' : 'var(--accent)';
+    }
+
+    function hideComposeStatus() {
+      document.getElementById('compose-status').style.display = 'none';
+    }
+
+    async function composeSend() {
+      const message = document.getElementById('compose-message').value.trim();
+      const hasMedia = !!composeMediaFile;
+
+      if (!message && !hasMedia) {
+        showComposeStatus('Please enter a message or attach media.', true);
+        return;
+      }
+
+      if (selectedRecipients.length === 0) {
+        showComposeStatus('Please select at least one group.', true);
+        return;
+      }
+
+      const btn = document.getElementById('compose-send-btn');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      try {
+        if (hasMedia) {
+          // Send with media via FormData
+          const formData = new FormData();
+          formData.append('media', composeMediaFile);
+          formData.append('caption', message);
+
+          if (selectedRecipients.length === 1) {
+            formData.append('chatId', selectedRecipients[0].id);
+            const res = await fetch(API + '/api/send-media', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.ok) {
+              showComposeStatus(`Media sent to <strong>${escapeHtml(selectedRecipients[0].name)}</strong>`, false);
+              document.getElementById('compose-message').value = '';
+              updateCharCount();
+              composeRemoveMedia();
+            } else {
+              showComposeStatus('Failed: ' + (data.error || 'Unknown error'), true);
+            }
+          } else {
+            formData.append('chatIds', JSON.stringify(selectedRecipients.map(r => r.id)));
+            const res = await fetch(API + '/api/broadcast-media', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.ok) {
+              const successes = data.results.filter(r => r.ok).length;
+              const failures = data.results.filter(r => !r.ok).length;
+              let statusMsg = `Media broadcast complete: <strong>${successes}/${selectedRecipients.length}</strong> sent.`;
+              if (failures > 0) statusMsg += ` <span style="color:var(--danger);">${failures} failed.</span>`;
+              showComposeStatus(statusMsg, false);
+              document.getElementById('compose-message').value = '';
+              updateCharCount();
+              composeRemoveMedia();
+            } else {
+              showComposeStatus('Broadcast failed: ' + (data.error || 'Unknown error'), true);
+            }
+          }
+        } else {
+          // Text-only send
+          if (selectedRecipients.length === 1) {
+            const res = await fetch(API + '/api/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chatId: selectedRecipients[0].id, message })
+            });
+            const data = await res.json();
+            if (data.ok) {
+              showComposeStatus(`Message sent to <strong>${escapeHtml(selectedRecipients[0].name)}</strong>`, false);
+              document.getElementById('compose-message').value = '';
+              updateCharCount();
+            } else {
+              showComposeStatus('Failed: ' + (data.error || 'Unknown error'), true);
+            }
+          } else {
+            const res = await fetch(API + '/api/broadcast', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chatIds: selectedRecipients.map(r => r.id), message })
+            });
+            const data = await res.json();
+            if (data.ok) {
+              const successes = data.results.filter(r => r.ok).length;
+              const failures = data.results.filter(r => !r.ok).length;
+              let statusMsg = `Broadcast complete: <strong>${successes}/${selectedRecipients.length}</strong> sent.`;
+              if (failures > 0) statusMsg += ` <span style="color:var(--danger);">${failures} failed.</span>`;
+              showComposeStatus(statusMsg, false);
+              document.getElementById('compose-message').value = '';
+              updateCharCount();
+            } else {
+              showComposeStatus('Broadcast failed: ' + (data.error || 'Unknown error'), true);
+            }
+          }
+        }
+      } catch (e) {
+        showComposeStatus('Error: ' + e.message, true);
+      }
+
+      btn.disabled = false;
+      renderSelectedChips(); // refresh button text
+    }
+
+    // ═══════════════════════════════════════════
+    // Auto-Refresh
+    // ═══════════════════════════════════════════
+
+    function startPolling() {
+      pollStatus();
+      setInterval(pollStatus, 5000);
+
+      // Refresh current view every 15 seconds
+      setInterval(() => {
+        switch (currentView) {
+          case 'dashboard': loadDashboard(); break;
+          case 'feed': loadFeed('all'); break;
+        }
+      }, 15000);
+    }
+
+    // ═══════════════════════════════════════════
+    // Tasks
+    // ═══════════════════════════════════════════
+
+    let allTasks = [];
+    let filteredTasks = [];
+    let currentTaskStatus = 'open';
+    let selectedTaskId = null;
+
+    async function loadTasks(statusFilter, tabEl) {
+      currentTaskStatus = statusFilter || 'open';
+
+      // Update tabs
+      if (tabEl) {
+        document.querySelectorAll('#view-tasks .tab').forEach(t => t.classList.remove('active'));
+        tabEl.classList.add('active');
+      }
+
+      // Load staff for assignee filter
+      try {
+        const staffRes = await fetch(API + '/api/settings/staff');
+        const staffData = await staffRes.json();
+        if (staffData.ok) {
+          const sel = document.getElementById('task-filter-assignee');
+          const currentVal = sel.value;
+          sel.innerHTML = '<option value="">All Assignees</option>';
+          (staffData.staff || []).forEach(s => {
+            sel.innerHTML += `<option value="${s}">${s}</option>`;
+          });
+          sel.value = currentVal;
+          // Also populate modal assignee dropdown
+          const modalSel = document.getElementById('new-task-assignee');
+          const modalVal = modalSel.value;
+          modalSel.innerHTML = '<option value="">Unassigned</option>';
+          (staffData.staff || []).forEach(s => {
+            modalSel.innerHTML += `<option value="${s}">${s}</option>`;
+          });
+          modalSel.value = modalVal;
+        }
+      } catch (e) { /* ignore */ }
+
+      // Fetch tasks
+      try {
+        const res = await fetch(API + `/api/tasks?status=${statusFilter === 'all' ? '' : statusFilter}`);
+        const data = await res.json();
+        allTasks = data.ok ? data.tasks : [];
+      } catch (err) {
+        allTasks = [];
+      }
+
+      // Load stats
+      try {
+        const statsRes = await fetch(API + '/api/tasks/stats');
+        const statsData = await statsRes.json();
+        if (statsData.ok) {
+          const s = statsData.stats;
+          document.getElementById('task-stats-bar').textContent =
+            `${s.open} open · ${s.inProgress} in progress · ${s.completed} completed${s.overdue ? ` · ${s.overdue} overdue` : ''}`;
+
+          // Update badge
+          const badge = document.getElementById('badge-tasks');
+          const openCount = s.open + s.inProgress;
+          if (openCount > 0) {
+            badge.textContent = openCount;
+            badge.style.display = '';
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+      } catch (e) { /* ignore */ }
+
+      applyTaskFilters();
+    }
+
+    function applyTaskFilters() {
+      const priorityFilter = document.getElementById('task-filter-priority').value;
+      const assigneeFilter = document.getElementById('task-filter-assignee').value;
+      const dueFilter = document.getElementById('task-filter-due').value;
+
+      filteredTasks = allTasks.filter(t => {
+        if (priorityFilter && t.priority !== priorityFilter) return false;
+        if (assigneeFilter && (t.assigned_to || '') !== assigneeFilter) return false;
+        if (dueFilter) {
+          if (!t.due_date) return false;
+          const now = Date.now();
+          const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+          const weekEnd = new Date(now + 7 * 86400000);
+          if (dueFilter === 'overdue' && t.due_date >= now) return false;
+          if (dueFilter === 'today' && t.due_date > todayEnd.getTime()) return false;
+          if (dueFilter === 'week' && t.due_date > weekEnd.getTime()) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('task-result-count').textContent = `${filteredTasks.length} task${filteredTasks.length !== 1 ? 's' : ''}`;
+      renderTaskList();
+    }
+
+    function renderTaskList() {
+      const container = document.getElementById('tasks-list');
+      if (filteredTasks.length === 0) {
+        container.innerHTML = `<div class="task-detail-empty">
+          <div style="font-size:2rem;margin-bottom:8px;">✅</div>
+          <p>No tasks match the current filters.</p>
+        </div>`;
+        return;
+      }
+
+      container.innerHTML = filteredTasks.map(t => {
+        const isCompleted = t.status === 'completed';
+        const isSelected = t.id === selectedTaskId;
+        const priorityTag = t.priority !== 'normal' ? `<span class="tag tag-${t.priority}">${t.priority}</span>` : '';
+        const statusTag = t.status === 'in_progress' ? '<span class="tag tag-open">in progress</span>' : '';
+
+        let dueMeta = '';
+        if (t.due_date) {
+          const d = new Date(t.due_date);
+          const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const isOverdue = !isCompleted && t.due_date < Date.now();
+          dueMeta = `<span class="${isOverdue ? 'overdue' : ''}">📅 ${dateStr}${isOverdue ? ' (overdue)' : ''}</span>`;
+        }
+
+        const assigneeMeta = t.assigned_to ? `<span>👤 ${escapeHtml(t.assigned_to)}</span>` : '';
+        const groupMeta = t.chat_name ? `<span>💬 ${escapeHtml(t.chat_name)}</span>` : '';
+        const stepsCount = (t.steps || []).length;
+        const stepsDone = (t.steps || []).filter(s => s.done).length;
+        const stepsMeta = stepsCount > 0 ? `<span>☑ ${stepsDone}/${stepsCount}</span>` : '';
+
+        return `<div class="task-item ${isSelected ? 'selected' : ''}" onclick="selectTask('${t.id}')">
+          <div class="task-check ${isCompleted ? 'completed' : ''}" onclick="event.stopPropagation(); toggleTaskComplete('${t.id}', ${isCompleted})"></div>
+          <div class="task-info">
+            <div class="task-title ${isCompleted ? 'done' : ''}">${escapeHtml(t.title)} ${priorityTag} ${statusTag}</div>
+            <div class="task-meta">${dueMeta}${assigneeMeta}${groupMeta}${stepsMeta}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    async function selectTask(taskId) {
+      selectedTaskId = taskId;
+
+      // Highlight in list
+      document.querySelectorAll('.task-item').forEach(el => el.classList.remove('selected'));
+      const clicked = document.querySelector(`.task-item[onclick="selectTask('${taskId}')"]`);
+      if (clicked) clicked.classList.add('selected');
+
+      const detail = document.getElementById('task-detail-content');
+      detail.innerHTML = '<div class="loading">Loading task...</div>';
+
+      try {
+        const res = await fetch(API + `/api/tasks/${taskId}`);
+        const data = await res.json();
+        if (!data.ok || !data.task) {
+          detail.innerHTML = '<div class="task-detail-empty"><p>Could not load task.</p></div>';
+          return;
+        }
+        renderTaskDetail(data.task);
+      } catch (err) {
+        detail.innerHTML = '<div class="task-detail-empty"><p>Error loading task.</p></div>';
+      }
+    }
+
+    function renderTaskDetail(t) {
+      const detail = document.getElementById('task-detail-content');
+      const isCompleted = t.status === 'completed';
+
+      let html = '';
+
+      // Header with status tags
+      html += `<div class="task-detail-section" style="border-bottom:1px solid var(--border);">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+          <span class="tag tag-${t.status === 'open' ? 'open' : t.status === 'in_progress' ? 'open' : t.status === 'completed' ? 'answered' : 'dismissed'}">${t.status.replace('_', ' ')}</span>
+          <span class="tag tag-${t.priority || 'normal'}">${t.priority || 'normal'}</span>
+          ${t.source_type !== 'manual' ? `<span class="tag tag-type">from ${t.source_type}</span>` : ''}
+        </div>
+      </div>`;
+
+      // Title (editable)
+      html += `<div class="task-detail-section">
+        <label>Title</label>
+        <input type="text" id="task-edit-title" value="${escapeHtml(t.title)}" onchange="saveTaskField('${t.id}', 'title', this.value)">
+      </div>`;
+
+      // Notes (editable)
+      html += `<div class="task-detail-section">
+        <label>Notes</label>
+        <textarea id="task-edit-body" onchange="saveTaskField('${t.id}', 'body', this.value)">${escapeHtml(t.body || '')}</textarea>
+      </div>`;
+
+      // Checklist Steps
+      const steps = t.steps || [];
+      html += `<div class="task-detail-section">
+        <label>Checklist (${steps.filter(s => s.done).length}/${steps.length})</label>`;
+      steps.forEach((s, i) => {
+        html += `<div class="step-item">
+          <input type="checkbox" ${s.done ? 'checked' : ''} onchange="toggleStep('${t.id}', ${i}, this.checked)">
+          <span class="step-text ${s.done ? 'done' : ''}">${escapeHtml(s.text)}</span>
+        </div>`;
+      });
+      html += `<div class="step-add">
+        <input type="text" id="new-step-input" placeholder="Add a step..." onkeydown="if(event.key==='Enter')addStep('${t.id}')">
+        <button onclick="addStep('${t.id}')">Add</button>
+      </div></div>`;
+
+      // Priority & Assignee
+      html += `<div class="task-detail-section" style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Priority</label>
+          <select onchange="saveTaskField('${t.id}', 'priority', this.value)">
+            <option value="low" ${t.priority === 'low' ? 'selected' : ''}>Low</option>
+            <option value="normal" ${t.priority === 'normal' ? 'selected' : ''}>Normal</option>
+            <option value="high" ${t.priority === 'high' ? 'selected' : ''}>High</option>
+            <option value="urgent" ${t.priority === 'urgent' ? 'selected' : ''}>Urgent</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <label>Assigned To</label>
+          <select id="task-edit-assignee" onchange="saveTaskField('${t.id}', 'assigned_to', this.value)">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+      </div>`;
+
+      // Due Date
+      const dueDateVal = t.due_date ? new Date(t.due_date).toISOString().split('T')[0] : '';
+      html += `<div class="task-detail-section">
+        <label>Due Date</label>
+        <input type="date" value="${dueDateVal}" onchange="saveTaskField('${t.id}', 'due_date', this.value ? new Date(this.value).getTime() : null)">
+      </div>`;
+
+      // Status
+      html += `<div class="task-detail-section">
+        <label>Status</label>
+        <select onchange="saveTaskField('${t.id}', 'status', this.value)">
+          <option value="open" ${t.status === 'open' ? 'selected' : ''}>Open</option>
+          <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+          <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>Completed</option>
+          <option value="cancelled" ${t.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+        </select>
+      </div>`;
+
+      // Source info
+      if (t.chat_name || t.sender) {
+        html += `<div class="task-detail-section">
+          <label>Source</label>
+          <div style="font-size:0.82rem;color:var(--text-secondary);">
+            ${t.sender ? `From: ${escapeHtml(t.sender)}` : ''}
+            ${t.chat_name ? `<br>Group: ${escapeHtml(t.chat_name)}` : ''}
+            ${t.source_type !== 'manual' ? `<br>Type: ${t.source_type}` : ''}
+          </div>
+        </div>`;
+      }
+
+      // Timestamps
+      html += `<div class="task-detail-section">
+        <label>Timestamps</label>
+        <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">
+          Created: ${new Date(t.created_at).toLocaleString()}<br>
+          Updated: ${new Date(t.updated_at).toLocaleString()}
+          ${t.completed_at ? `<br>Completed: ${new Date(t.completed_at).toLocaleString()} by ${escapeHtml(t.completed_by || 'unknown')}` : ''}
+        </div>
+      </div>`;
+
+      // Actions
+      html += `<div class="task-actions">`;
+      if (!isCompleted) {
+        html += `<button class="btn-complete" onclick="toggleTaskComplete('${t.id}', false)">✅ Complete</button>`;
+        html += `<button onclick="saveTaskField('${t.id}', 'status', 'in_progress')">🔄 In Progress</button>`;
+      } else {
+        html += `<button onclick="toggleTaskComplete('${t.id}', true)">↩ Reopen</button>`;
+      }
+      html += `<button class="btn-danger" onclick="deleteTask('${t.id}')">🗑 Delete</button>`;
+      html += `</div>`;
+
+      detail.innerHTML = html;
+
+      // Populate assignee dropdown in detail
+      populateAssigneeDropdown('task-edit-assignee', t.assigned_to);
+    }
+
+    async function populateAssigneeDropdown(selectId, currentValue) {
+      try {
+        const res = await fetch(API + '/api/settings/staff');
+        const data = await res.json();
+        if (data.ok) {
+          const sel = document.getElementById(selectId);
+          if (!sel) return;
+          sel.innerHTML = '<option value="">Unassigned</option>';
+          (data.staff || []).forEach(s => {
+            sel.innerHTML += `<option value="${s}" ${s === currentValue ? 'selected' : ''}>${s}</option>`;
+          });
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    async function saveTaskField(taskId, field, value) {
+      try {
+        const body = {};
+        body[field] = value;
+        await fetch(API + `/api/tasks/${taskId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        // Refresh list and detail
+        loadTasks(currentTaskStatus, document.querySelector('#view-tasks .tab.active'));
+        if (selectedTaskId === taskId) {
+          setTimeout(() => selectTask(taskId), 300);
+        }
+      } catch (err) {
+        console.error('Failed to save task field:', err);
+      }
+    }
+
+    async function toggleTaskComplete(taskId, isCurrentlyCompleted) {
+      try {
+        if (isCurrentlyCompleted) {
+          await fetch(API + `/api/tasks/${taskId}/reopen`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        } else {
+          await fetch(API + `/api/tasks/${taskId}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        }
+        loadTasks(currentTaskStatus, document.querySelector('#view-tasks .tab.active'));
+        if (selectedTaskId === taskId) {
+          setTimeout(() => selectTask(taskId), 300);
+        }
+      } catch (err) {
+        console.error('Toggle complete failed:', err);
+      }
+    }
+
+    async function toggleStep(taskId, stepIndex, checked) {
+      const task = allTasks.find(t => t.id === taskId) || filteredTasks.find(t => t.id === taskId);
+      if (!task) return;
+      const steps = [...(task.steps || [])];
+      if (steps[stepIndex]) {
+        steps[stepIndex] = { ...steps[stepIndex], done: checked };
+        await saveTaskField(taskId, 'steps', steps);
+      }
+    }
+
+    async function addStep(taskId) {
+      const input = document.getElementById('new-step-input');
+      const text = (input.value || '').trim();
+      if (!text) return;
+
+      const task = allTasks.find(t => t.id === taskId) || filteredTasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const steps = [...(task.steps || []), { text, done: false }];
+      input.value = '';
+      await saveTaskField(taskId, 'steps', steps);
+    }
+
+    async function deleteTask(taskId) {
+      if (!confirm('Delete this task permanently?')) return;
+      try {
+        await fetch(API + `/api/tasks/${taskId}`, { method: 'DELETE' });
+        selectedTaskId = null;
+        document.getElementById('task-detail-content').innerHTML = `<div class="task-detail-empty">
+          <div style="font-size:2rem;margin-bottom:8px;">📋</div>
+          <p>Task deleted. Select another task.</p>
+        </div>`;
+        loadTasks(currentTaskStatus, document.querySelector('#view-tasks .tab.active'));
+      } catch (err) {
+        console.error('Delete task failed:', err);
+      }
+    }
+
+    // ── New Task Modal ──
+
+    function openNewTaskModal(prefill = {}) {
+      document.getElementById('new-task-title').value = prefill.title || '';
+      document.getElementById('new-task-body').value = prefill.body || '';
+      document.getElementById('new-task-priority').value = prefill.priority || 'normal';
+      document.getElementById('new-task-due').value = '';
+      document.getElementById('new-task-modal').classList.add('open');
+
+      // Store prefill source info
+      document.getElementById('new-task-modal').dataset.chatId = prefill.chatId || '';
+      document.getElementById('new-task-modal').dataset.chatName = prefill.chatName || '';
+      document.getElementById('new-task-modal').dataset.sender = prefill.sender || '';
+      document.getElementById('new-task-modal').dataset.sourceType = prefill.sourceType || 'manual';
+      document.getElementById('new-task-modal').dataset.sourceId = prefill.sourceId || '';
+
+      // Populate assignee dropdown
+      populateAssigneeDropdown('new-task-assignee', '');
+    }
+
+    function closeNewTaskModal() {
+      document.getElementById('new-task-modal').classList.remove('open');
+    }
+
+    async function createTask() {
+      const title = document.getElementById('new-task-title').value.trim();
+      if (!title) { alert('Title is required'); return; }
+
+      const modal = document.getElementById('new-task-modal');
+      const dueVal = document.getElementById('new-task-due').value;
+
+      const taskData = {
+        title,
+        body: document.getElementById('new-task-body').value.trim(),
+        priority: document.getElementById('new-task-priority').value,
+        assignedTo: document.getElementById('new-task-assignee').value || null,
+        dueDate: dueVal ? new Date(dueVal).getTime() : null,
+        chatId: modal.dataset.chatId || null,
+        chatName: modal.dataset.chatName || null,
+        sender: modal.dataset.sender || null,
+        sourceType: modal.dataset.sourceType || 'manual',
+        sourceId: modal.dataset.sourceId || null
+      };
+
+      try {
+        const res = await fetch(API + '/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(taskData)
+        });
+        const data = await res.json();
+        if (data.ok) {
+          closeNewTaskModal();
+          showView('tasks');
+        } else {
+          alert('Error creating task: ' + (data.error || 'unknown'));
+        }
+      } catch (err) {
+        alert('Error creating task: ' + err.message);
+      }
+    }
+
+    // ── Create Task from Question / Feed ──
+
+    function createTaskFromQuestion(q) {
+      openNewTaskModal({
+        title: (q.body || '').substring(0, 200),
+        body: `Original question from ${q.sender} in ${q.chat_name}:\n${q.body}`,
+        chatId: q.chat_id,
+        chatName: q.chat_name,
+        sender: q.sender,
+        sourceType: 'question',
+        sourceId: q.id,
+        priority: q.priority || 'normal'
+      });
+    }
+
+    function createTaskFromFeed(item) {
+      openNewTaskModal({
+        title: (item.body || '').substring(0, 200),
+        body: `From ${item.sender} in ${item.chat_name}:\n${item.body}`,
+        chatId: item.chat_id,
+        chatName: item.chat_name,
+        sender: item.sender,
+        sourceType: 'feed',
+        sourceId: String(item.id || '')
+      });
+    }
+
+    // ═══════════════════════════════════════════
+    // Init
+    // ═══════════════════════════════════════════
+
+    loadDashboard();
+    startPolling();
+  </script>
+</body>
+</html>

@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Command Center — Team</title>
+  <style>
+    :root {
+      --bg-primary: #0a0f1c;
+      --bg-card: #141b2d;
+      --bg-card-hover: #1a2340;
+      --border: #1e2a40;
+      --text-primary: #e1e8f0;
+      --text-secondary: #8892a4;
+      --text-muted: #4a5568;
+      --accent: #25D366;
+      --accent-dim: rgba(37, 211, 102, 0.1);
+      --danger: #e74c3c;
+      --danger-dim: rgba(231, 76, 60, 0.1);
+      --warning: #f0b429;
+      --warning-dim: rgba(240, 180, 41, 0.1);
+      --info: #3498db;
+      --info-dim: rgba(52, 152, 219, 0.1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      min-height: 100vh;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-header h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #25D366, #128C7E);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sidebar-header .version {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .sidebar-nav { flex: 1; padding: 12px 8px; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+      margin-bottom: 2px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+    .nav-icon { font-size: 1.1rem; width: 22px; text-align: center; }
+
+    .nav-badge {
+      margin-left: auto;
+      background: var(--accent);
+      color: var(--bg-primary);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    .sidebar-status {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.ready { background: var(--accent); }
+    .status-dot.qr { background: var(--warning); }
+    .status-dot.disconnected { background: var(--danger); }
+
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ── Main ── */
+    .main {
+      margin-left: 220px;
+      flex: 1;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .page-header { margin-bottom: 24px; }
+    .page-header h2 { font-size: 1.4rem; font-weight: 600; }
+    .page-header p { color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px; }
+
+    /* ── Cards ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .stat-card .label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-card .value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-top: 4px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-header h3 { font-size: 0.95rem; font-weight: 600; }
+    .card-body { padding: 0; }
+
+    /* ── List Items ── */
+    .list-item {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: background 0.1s;
+    }
+
+    .list-item:last-child { border-bottom: none; }
+    .list-item:hover { background: var(--bg-card-hover); }
+
+    .list-item .icon {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .list-item .content { flex: 1; min-width: 0; }
+
+    .list-item .title {
+      font-size: 0.85rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .list-item .meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .list-item .body {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .list-item .time {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* ── Tags ── */
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .tag-open { background: var(--warning-dim); color: var(--warning); }
+    .tag-answered { background: var(--accent-dim); color: var(--accent); }
+    .tag-group { background: var(--info-dim); color: var(--info); }
+
+    /* ── Empty ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.9rem; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      background: none;
+      border-top: none; border-left: none; border-right: none;
+    }
+
+    .tab:hover { color: var(--text-primary); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── View Toggle ── */
+    .view { display: none; }
+    .view.active { display: block; }
+    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar { width: 60px; }
+      .sidebar .nav-label, .sidebar-header h1, .sidebar-header .version, .sidebar-status span { display: none; }
+      .main { margin-left: 60px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h1>Command Center</h1>
+      <div class="version">v3.0 — Team View</div>
+    </div>
+
+    <div class="sidebar-nav">
+      <button class="nav-item active" onclick="showView('dashboard')">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Dashboard</span>
+      </button>
+      <button class="nav-item" onclick="showView('groups')">
+        <span class="nav-icon">👥</span>
+        <span class="nav-label">Groups</span>
+      </button>
+      <button class="nav-item" onclick="showView('questions')">
+        <span class="nav-icon">❓</span>
+        <span class="nav-label">Questions</span>
+        <span class="nav-badge" id="badge-questions" style="display:none">0</span>
+      </button>
+      <button class="nav-item" onclick="showView('feed')">
+        <span class="nav-icon">📡</span>
+        <span class="nav-label">Activity</span>
+      </button>
+    </div>
+
+    <div class="sidebar-status">
+      <span class="status-dot disconnected" id="sidebar-status-dot"></span>
+      <span id="sidebar-status-text">Connecting...</span>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main">
+
+    <!-- ═══ Dashboard ═══ -->
+    <div class="view active" id="view-dashboard">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <p>Real-time overview of WhatsApp group activity</p>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="label">Messages Today</div>
+          <div class="value" id="dash-today-msgs">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Active Groups</div>
+          <div class="value" id="dash-active-groups">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Open Questions</div>
+          <div class="value" id="dash-open-questions">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total Groups</div>
+          <div class="value" id="dash-total-groups">0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Recent Group Activity</h3>
+          <button class="btn btn-ghost btn-sm" onclick="showView('feed')">View All</button>
+        </div>
+        <div class="card-body" id="dash-recent-feed">
+          <div class="empty-state">
+            <div class="icon">📡</div>
+            <p>Activity will appear here as messages come in</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Top Senders</h3>
+        </div>
+        <div class="card-body" id="dash-top-senders">
+          <div class="empty-state">
+            <div class="icon">👤</div>
+            <p>Sender stats will populate as messages flow in</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Groups ═══ -->
+    <div class="view" id="view-groups">
+      <div class="page-header">
+        <h2>Groups</h2>
+        <p>All tracked WhatsApp groups</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Group List</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadGroups()">Refresh</button>
+        </div>
+        <div class="card-body" id="groups-list">
+          <div class="loading">Loading groups...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Questions ═══ -->
+    <div class="view" id="view-questions">
+      <div class="page-header">
+        <h2>Questions</h2>
+        <p>Track questions across your groups</p>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="loadQuestions('open', this)">Open</button>
+        <button class="tab" onclick="loadQuestions('all', this)">All</button>
+      </div>
+      <div class="card">
+        <div class="card-body" id="questions-list">
+          <div class="empty-state">
+            <div class="icon">❓</div>
+            <p>No questions detected yet. They'll appear as people ask questions in the groups.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Activity Feed ═══ -->
+    <div class="view" id="view-feed">
+      <div class="page-header">
+        <h2>Activity Feed</h2>
+        <p>Recent activity across all groups</p>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="loadFeed('all', this)">All</button>
+        <button class="tab" onclick="loadFeed('message', this)">Messages</button>
+        <button class="tab" onclick="loadFeed('question', this)">Questions</button>
+      </div>
+      <div class="card">
+        <div class="card-body" id="feed-list">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API = '';
+    let currentView = 'dashboard';
+    let feedData = [];
+
+    // ═══ Navigation ═══
+
+    function showView(view) {
+      currentView = view;
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('view-' + view).classList.add('active');
+      document.querySelector(`[onclick="showView('${view}')"]`).classList.add('active');
+
+      switch (view) {
+        case 'dashboard': loadDashboard(); break;
+        case 'groups': loadGroups(); break;
+        case 'questions': loadQuestions('open'); break;
+        case 'feed': loadFeed('all'); break;
+      }
+    }
+
+    // ═══ Helpers ═══
+
+    function timeAgo(ts) {
+      if (!ts) return '';
+      const diff = Date.now() - ts;
+      if (diff < 60000) return 'just now';
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+      return Math.floor(diff / 86400000) + 'd ago';
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ═══ Status ═══
+
+    async function pollStatus() {
+      try {
+        const res = await fetch(API + '/api/status');
+        const data = await res.json();
+        const dot = document.getElementById('sidebar-status-dot');
+        const text = document.getElementById('sidebar-status-text');
+        dot.className = 'status-dot ' + (data.whatsapp === 'ready' ? 'ready' : data.whatsapp === 'qr' ? 'qr' : 'disconnected');
+        const labels = { ready: 'Connected', qr: 'Awaiting QR Scan', loading: 'Loading...', disconnected: 'Disconnected', failed: 'Offline' };
+        text.textContent = labels[data.whatsapp] || 'Unknown';
+      } catch (e) {
+        console.error('Poll error:', e);
+      }
+    }
+
+    // ═══ Dashboard ═══
+
+    async function loadDashboard() {
+      try {
+        const [dashRes, feedRes, sendersRes] = await Promise.all([
+          fetch(API + '/api/dashboard'),
+          fetch(API + '/api/feed?limit=10'),
+          fetch(API + '/api/senders/top?limit=5')
+        ]);
+
+        const dash = await dashRes.json();
+        const feed = await feedRes.json();
+        const senders = await sendersRes.json();
+
+        if (dash.ok) {
+          document.getElementById('dash-today-msgs').textContent = dash.stats.todayMessages || 0;
+          document.getElementById('dash-active-groups').textContent = dash.stats.activeGroupsToday || 0;
+          document.getElementById('dash-open-questions').textContent = dash.stats.pendingQuestions || 0;
+          document.getElementById('dash-total-groups').textContent = dash.stats.totalGroups || 0;
+        }
+
+        // Recent feed — only group messages and questions (filter out DMs and mentions)
+        const feedEl = document.getElementById('dash-recent-feed');
+        if (feed.ok && feed.feed) {
+          const groupFeed = feed.feed.filter(f => f.type === 'message' || f.type === 'question');
+          if (groupFeed.length > 0) {
+            feedEl.innerHTML = groupFeed.map(item => renderFeedItem(item)).join('');
+          }
+        }
+
+        // Top senders
+        const sendersEl = document.getElementById('dash-top-senders');
+        if (senders.ok && senders.senders && senders.senders.length > 0) {
+          sendersEl.innerHTML = senders.senders.map((s, i) => `
+            <div class="list-item">
+              <div class="icon" style="background:var(--accent-dim);color:var(--accent);font-weight:700;">${i + 1}</div>
+              <div class="content">
+                <div class="title">${escapeHtml(s.sender)}</div>
+                <div class="meta">${s.message_count} messages</div>
+              </div>
+              <div class="time">${timeAgo(s.last_seen)}</div>
+            </div>
+          `).join('');
+        }
+
+        // Badge
+        if (dash.ok) {
+          const badge = document.getElementById('badge-questions');
+          const count = dash.stats.pendingQuestions || 0;
+          if (count > 0) { badge.style.display = 'inline'; badge.textContent = count > 99 ? '99+' : count; }
+          else { badge.style.display = 'none'; }
+        }
+      } catch (e) {
+        console.error('Dashboard error:', e);
+      }
+    }
+
+    // ═══ Feed Item (filtered — no DMs, no mentions) ═══
+
+    function renderFeedItem(item) {
+      // Skip DMs and mentions in team view
+      if (item.type === 'dm' || item.type === 'mention') return '';
+
+      const icons = { message: '💬', question: '❓' };
+      const colors = { message: 'var(--info-dim)', question: 'var(--warning-dim)' };
+      const textColors = { message: 'var(--info)', question: 'var(--warning)' };
+
+      return `
+        <div class="list-item">
+          <div class="icon" style="background:${colors[item.type] || colors.message};color:${textColors[item.type] || textColors.message}">${icons[item.type] || '💬'}</div>
+          <div class="content">
+            <div class="title">${escapeHtml(item.sender || 'Unknown')}</div>
+            <div class="meta">${escapeHtml(item.chat_name || '')} · ${item.type}</div>
+            <div class="body">${escapeHtml(item.body || '')}</div>
+          </div>
+          <div class="time">${timeAgo(item.timestamp)}</div>
+        </div>
+      `;
+    }
+
+    // ═══ Groups ═══
+
+    async function loadGroups() {
+      const el = document.getElementById('groups-list');
+      el.innerHTML = '<div class="loading">Loading groups...</div>';
+
+      try {
+        const res = await fetch(API + '/api/groups');
+        const data = await res.json();
+
+        if (!data.ok || !data.groups || data.groups.length === 0) {
+          // Fallback to live WhatsApp chats (groups only)
+          const waRes = await fetch(API + '/api/whatsapp/chats');
+          const waData = await waRes.json();
+
+          if (waData.ok && waData.chats) {
+            const groups = waData.chats.filter(c => c.isGroup);
+            el.innerHTML = groups.map(g => `
+              <div class="list-item">
+                <div class="icon" style="background:var(--info-dim);color:var(--info)">👥</div>
+                <div class="content">
+                  <div class="title">${escapeHtml(g.name)}</div>
+                  <div class="meta">${g.unreadCount || 0} unread</div>
+                </div>
+                <div class="time">${timeAgo(g.timestamp)}</div>
+              </div>
+            `).join('');
+          } else {
+            el.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>No groups tracked yet.</p></div>';
+          }
+          return;
+        }
+
+        el.innerHTML = data.groups.map(g => `
+          <div class="list-item">
+            <div class="icon" style="background:var(--info-dim);color:var(--info)">👥</div>
+            <div class="content">
+              <div class="title">${escapeHtml(g.name)}</div>
+              <div class="meta">${g.message_count || 0} messages · ${(g.members || []).length} members</div>
+            </div>
+            <div class="time">${timeAgo(g.last_message_time)}</div>
+          </div>
+        `).join('');
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><p>Failed to load groups</p></div>';
+      }
+    }
+
+    // ═══ Questions ═══
+
+    async function loadQuestions(filter, tabEl) {
+      if (tabEl) {
+        document.querySelectorAll('#view-questions .tab').forEach(t => t.classList.remove('active'));
+        tabEl.classList.add('active');
+      }
+
+      const el = document.getElementById('questions-list');
+      el.innerHTML = '<div class="loading">Loading...</div>';
+
+      try {
+        const url = filter === 'open' ? API + '/api/questions?status=open' : API + '/api/questions';
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.ok || !data.questions || data.questions.length === 0) {
+          el.innerHTML = '<div class="empty-state"><div class="icon">❓</div><p>No questions yet.</p></div>';
+          return;
+        }
+
+        el.innerHTML = data.questions.map(q => `
+          <div class="list-item">
+            <div class="icon" style="background:${q.status === 'open' ? 'var(--warning-dim)' : 'var(--accent-dim)'};color:${q.status === 'open' ? 'var(--warning)' : 'var(--accent)'}">❓</div>
+            <div class="content">
+              <div class="title">
+                ${escapeHtml(q.sender)}
+                <span class="tag ${q.status === 'open' ? 'tag-open' : 'tag-answered'}">${q.status}</span>
+              </div>
+              <div class="meta">${escapeHtml(q.chat_name)}</div>
+              <div class="body">${escapeHtml(q.body)}</div>
+              ${q.answer_preview ? `<div class="meta" style="margin-top:4px;">↳ ${escapeHtml(q.answered_by)}: ${escapeHtml(q.answer_preview)}</div>` : ''}
+            </div>
+            <div class="time">${timeAgo(q.timestamp)}</div>
+          </div>
+        `).join('');
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><p>Failed to load questions</p></div>';
+      }
+    }
+
+    // ═══ Activity Feed (groups only — no DMs, no mentions) ═══
+
+    async function loadFeed(type, tabEl) {
+      if (tabEl) {
+        document.querySelectorAll('#view-feed .tab').forEach(t => t.classList.remove('active'));
+        tabEl.classList.add('active');
+      }
+
+      const el = document.getElementById('feed-list');
+      el.innerHTML = '<div class="loading">Loading...</div>';
+
+      try {
+        const res = await fetch(API + '/api/feed?limit=100');
+        const data = await res.json();
+
+        if (!data.ok || !data.feed || data.feed.length === 0) {
+          el.innerHTML = '<div class="empty-state"><div class="icon">📡</div><p>No activity yet.</p></div>';
+          return;
+        }
+
+        // Filter out DMs and mentions for team view
+        feedData = data.feed.filter(f => f.type === 'message' || f.type === 'question');
+        const filtered = type === 'all' ? feedData : feedData.filter(f => f.type === type);
+
+        if (filtered.length === 0) {
+          el.innerHTML = `<div class="empty-state"><p>No ${type} activity yet</p></div>`;
+          return;
+        }
+
+        el.innerHTML = filtered.map(item => renderFeedItem(item)).join('');
+      } catch (e) {
+        el.innerHTML = '<div class="empty-state"><p>Failed to load feed</p></div>';
+      }
+    }
+
+    // ═══ Auto-refresh ═══
+
+    function startPolling() {
+      pollStatus();
+      setInterval(pollStatus, 5000);
+      setInterval(() => {
+        if (currentView === 'dashboard') loadDashboard();
+      }, 15000);
+    }
+
+    // ═══ Init ═══
+    loadDashboard();
+    startPolling();
+  </script>
+</body>
+</html>
