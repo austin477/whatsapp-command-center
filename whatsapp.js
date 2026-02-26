@@ -55,6 +55,28 @@ class WhatsAppService extends EventEmitter {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 
+    // Clean up stale Chromium lock files from persistent volume (prevents "profile in use" errors after redeploy)
+    try {
+      const authDir = path.join(DATA_DIR, '.wwebjs_auth');
+      if (fs.existsSync(authDir)) {
+        const cleanLocks = (dir) => {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isFile() && (entry.name === 'SingletonLock' || entry.name === 'SingletonSocket' || entry.name === 'SingletonCookie')) {
+              console.log('[Cleanup] Removing stale lock file:', fullPath);
+              fs.unlinkSync(fullPath);
+            } else if (entry.isDirectory()) {
+              cleanLocks(fullPath);
+            }
+          }
+        };
+        cleanLocks(authDir);
+      }
+    } catch (err) {
+      console.error('[Cleanup] Error cleaning lock files:', err.message);
+    }
+
     // Try to find Chrome — prefer PUPPETEER_EXECUTABLE_PATH env var (set by Docker/Railway)
     const envChrome = process.env.PUPPETEER_EXECUTABLE_PATH;
     const systemChrome = envChrome || findChromePath();
