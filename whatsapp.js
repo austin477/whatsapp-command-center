@@ -55,8 +55,9 @@ class WhatsAppService extends EventEmitter {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 
-    // Try to find Chrome
-    const systemChrome = findChromePath();
+    // Try to find Chrome — prefer PUPPETEER_EXECUTABLE_PATH env var (set by Docker/Railway)
+    const envChrome = process.env.PUPPETEER_EXECUTABLE_PATH;
+    const systemChrome = envChrome || findChromePath();
     const puppeteerOpts = {
       headless: true,
       args: [
@@ -432,6 +433,45 @@ class WhatsAppService extends EventEmitter {
               id: msgId
             }, aiResult);
             console.log(`[AI] Caught missed question: "${(message.body || '').substring(0, 40)}..." from ${senderName}`);
+          }
+
+          // If AI detected an approval (response to an offer sheet)
+          if (aiResult && aiResult.intent === 'approval' && aiResult.confidence >= 0.5) {
+            // Gather context messages for reference
+            let contextMsgs = [];
+            try {
+              const recent = await chat.fetchMessages({ limit: 8 });
+              contextMsgs = recent
+                .filter(m => (m.id._serialized || m.id.id) !== msgId)
+                .slice(-6)
+                .map(m => ({
+                  sender: m.fromMe ? 'Me' : (m.author || m.from || 'Unknown'),
+                  body: (m.body || '').substring(0, 300),
+                  timestamp: m.timestamp ? m.timestamp * 1000 : Date.now()
+                }));
+            } catch { /* ok */ }
+
+            const approvalStatus = aiResult.summary?.toLowerCase().includes('reject') ? 'rejected'
+              : aiResult.summary?.toLowerCase().includes('condition') ? 'conditional'
+              : 'approved';
+
+            await this.store.addApproval({
+              chatId,
+              chatName,
+              sender: senderName,
+              body: (message.body || '').substring(0, 500),
+              timestamp,
+              offerSheetRef: quotedMsgBody ? quotedMsgBody.substring(0, 200) : '',
+              offerDescription: aiResult.summary || '',
+              status: approvalStatus,
+              confidence: aiResult.confidence,
+              aiSummary: aiResult.summary || '',
+              conditions: '',
+              sourceMessageId: null,
+              msgId,
+              contextMessages: contextMsgs
+            });
+            console.log(`[Approval] Detected ${approvalStatus} from ${senderName} in ${chatName}`);
           }
         }
       });
