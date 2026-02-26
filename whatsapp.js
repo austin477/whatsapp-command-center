@@ -726,23 +726,11 @@ class WhatsAppService extends EventEmitter {
     const myLid = await this.store.getMyLid();
     const trackName = await this.store.getTrackName() || '';
 
-    // Get partner group names from Settings, then match against WhatsApp chats by name
-    const partnerNames = await this.store.getPartnerGroupNames();
-    const partnerNamesLower = new Set(partnerNames.map(n => n.toLowerCase().trim()));
-
+    // Get ALL group chats (not just partner groups) so everything is captured in Supabase
     const allChats = await this.client.getChats();
-    const groupChats = allChats.filter(c => {
-      if (!c.isGroup) return false;
-      const name = (c.name || '').toLowerCase().trim();
-      return partnerNamesLower.has(name);
-    });
+    const groupChats = allChats.filter(c => c.isGroup);
 
-    console.log(`[Backfill] Matched ${groupChats.length} of ${partnerNames.length} partner groups from Settings`);
-    if (groupChats.length < partnerNames.length) {
-      const matchedNames = new Set(groupChats.map(c => (c.name || '').toLowerCase().trim()));
-      const unmatched = partnerNames.filter(n => !matchedNames.has(n.toLowerCase().trim()));
-      console.log(`[Backfill] Could not find WhatsApp chats for: ${unmatched.join(', ')}`);
-    }
+    console.log(`[Backfill] Found ${groupChats.length} total group chats`);
 
     const stats = {
       totalChats: groupChats.length,
