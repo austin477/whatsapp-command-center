@@ -124,6 +124,7 @@
     .status-dot.ready { background: var(--accent); }
     .status-dot.qr { background: var(--warning); }
     .status-dot.disconnected { background: var(--danger); }
+    .status-dot.cloud { background: #60a5fa; }
 
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
@@ -908,8 +909,135 @@
     }
     .btn-create-task:hover { background: var(--accent); color: #000; }
   </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+  <style>
+    /* Dark theme for Flatpickr */
+    .flatpickr-calendar { background: var(--card-bg, #1e293b); border: 1px solid var(--border, #334155); box-shadow: 0 8px 32px rgba(0,0,0,0.5); border-radius: 10px; font-family: inherit; }
+    .flatpickr-calendar .flatpickr-month, .flatpickr-calendar .flatpickr-weekdays { background: transparent; }
+    .flatpickr-calendar .flatpickr-monthDropdown-months, .flatpickr-calendar .numInputWrapper { background: transparent; color: var(--text, #e2e8f0); }
+    .flatpickr-calendar span.flatpickr-weekday { color: var(--text-secondary, #94a3b8); font-weight: 600; }
+    .flatpickr-calendar .flatpickr-day { color: var(--text, #e2e8f0); border-radius: 6px; }
+    .flatpickr-calendar .flatpickr-day:hover { background: var(--hover, #334155); border-color: var(--hover, #334155); }
+    .flatpickr-calendar .flatpickr-day.today { border-color: var(--accent, #2ecc71); }
+    .flatpickr-calendar .flatpickr-day.selected { background: var(--accent, #2ecc71); border-color: var(--accent, #2ecc71); color: #000; }
+    .flatpickr-calendar .flatpickr-day.prevMonthDay, .flatpickr-calendar .flatpickr-day.nextMonthDay { color: var(--text-secondary, #64748b); }
+    .flatpickr-calendar .flatpickr-months .flatpickr-prev-month, .flatpickr-calendar .flatpickr-months .flatpickr-next-month { fill: var(--text, #e2e8f0); }
+    .flatpickr-calendar .flatpickr-months .flatpickr-prev-month:hover svg, .flatpickr-calendar .flatpickr-months .flatpickr-next-month:hover svg { fill: var(--accent, #2ecc71); }
+    .flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months { color: var(--text, #e2e8f0); }
+    .flatpickr-calendar .flatpickr-current-month input.cur-year { color: var(--text, #e2e8f0); }
+    .flatpickr-calendar .flatpickr-time input, .flatpickr-calendar .flatpickr-time .flatpickr-am-pm { color: var(--text, #e2e8f0); background: transparent; }
+    .flatpickr-calendar .flatpickr-time .flatpickr-time-separator { color: var(--text, #e2e8f0); }
+
+    /* ── Auth / Login Screen ── */
+    .auth-screen {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg-primary);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .auth-screen.hidden { display: none; }
+    .auth-box {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .auth-box h1 { font-size: 1.5rem; margin-bottom: 4px; color: var(--accent); }
+    .auth-box .subtitle { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 28px; }
+    .auth-box .form-group { margin-bottom: 16px; }
+    .auth-box label { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 500; }
+    .auth-box input[type="text"], .auth-box input[type="email"], .auth-box input[type="password"] {
+      width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; outline: none;
+    }
+    .auth-box input:focus { border-color: var(--accent); }
+    .auth-box .btn-auth {
+      width: 100%; padding: 12px; border: none; border-radius: 8px;
+      background: var(--accent); color: #000; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; margin-top: 8px; transition: opacity 0.2s;
+    }
+    .auth-box .btn-auth:hover { opacity: 0.9; }
+    .auth-box .btn-auth:disabled { opacity: 0.5; cursor: not-allowed; }
+    .auth-box .auth-error {
+      background: var(--danger-dim); color: var(--danger); padding: 10px 14px;
+      border-radius: 8px; font-size: 0.82rem; margin-bottom: 16px; display: none;
+    }
+    .auth-box .auth-toggle {
+      text-align: center; margin-top: 20px; font-size: 0.82rem; color: var(--text-secondary);
+    }
+    .auth-box .auth-toggle a {
+      color: var(--accent); cursor: pointer; text-decoration: none;
+    }
+    .auth-box .auth-toggle a:hover { text-decoration: underline; }
+
+    /* ── Sidebar User Info ── */
+    .sidebar-user {
+      padding: 12px 16px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-user-avatar {
+      width: 32px; height: 32px; border-radius: 50%; background: var(--accent-dim);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; color: var(--accent); font-size: 0.85rem; flex-shrink: 0;
+    }
+    .sidebar-user-info { flex: 1; min-width: 0; }
+    .sidebar-user-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-user-email { font-size: 0.7rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-user-logout {
+      background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.75rem; padding: 4px 8px; border-radius: 4px;
+    }
+    .sidebar-user-logout:hover { color: var(--danger); background: var(--danger-dim); }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 </head>
 <body>
+
+  <!-- Auth Screen -->
+  <div class="auth-screen" id="auth-screen">
+    <div class="auth-box" id="auth-box-login">
+      <h1>Command Center</h1>
+      <div class="subtitle">Sign in to your account</div>
+      <div class="auth-error" id="login-error"></div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter your password" autocomplete="current-password">
+      </div>
+      <button class="btn-auth" id="btn-login" onclick="handleLogin()">Sign In</button>
+      <div class="auth-toggle">
+        Don't have an account? <a onclick="showAuthForm('register')">Create one</a>
+      </div>
+    </div>
+
+    <div class="auth-box" id="auth-box-register" style="display:none;">
+      <h1>Create Account</h1>
+      <div class="subtitle">Set up your Command Center profile</div>
+      <div class="auth-error" id="register-error"></div>
+      <div class="form-group">
+        <label>Your Name</label>
+        <input type="text" id="register-name" placeholder="e.g. Austin" autocomplete="name">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="register-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="register-password" placeholder="At least 6 characters" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>Track Name <span style="color:var(--text-muted);font-weight:normal;">(for mentions — defaults to your name)</span></label>
+        <input type="text" id="register-track-name" placeholder="e.g. Austin">
+      </div>
+      <button class="btn-auth" id="btn-register" onclick="handleRegister()">Create Account</button>
+      <div class="auth-toggle">
+        Already have an account? <a onclick="showAuthForm('login')">Sign in</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Container (hidden until authenticated) -->
+  <div id="app-container" style="display:none;width:100%;min-height:100vh;">
 
   <!-- Sidebar -->
   <nav class="sidebar">
@@ -959,6 +1087,15 @@
         <span class="nav-icon">⚙️</span>
         <span class="nav-label">Settings</span>
       </button>
+    </div>
+
+    <div class="sidebar-user" id="sidebar-user" style="display:none;">
+      <div class="sidebar-user-avatar" id="sidebar-avatar">?</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="sidebar-user-name">User</div>
+        <div class="sidebar-user-email" id="sidebar-user-email">email</div>
+      </div>
+      <button class="sidebar-user-logout" onclick="handleLogout()" title="Sign out">Logout</button>
     </div>
 
     <div class="sidebar-status">
@@ -1348,8 +1485,8 @@
             </div>
           </div>
           <div class="form-group">
-            <label>Due Date</label>
-            <input type="date" id="new-task-due">
+            <label>Due Date & Time <span style="color:var(--text-secondary);font-weight:normal;">(time is optional)</span></label>
+            <input type="text" id="new-task-due" placeholder="Click to pick a date..." readonly style="cursor:pointer;">
           </div>
         </div>
         <div class="modal-footer">
@@ -1368,12 +1505,14 @@
 
       <div class="card">
         <div class="setting-group">
-          <label>Your Name (for mention tracking)</label>
-          <div class="hint">Messages containing this name will be flagged as mentions</div>
-          <div style="display:flex;gap:8px;">
-            <input type="text" id="setting-track-name" placeholder="e.g. Austin" />
-            <button class="btn btn-primary btn-sm" onclick="saveTrackName()">Save</button>
+          <label>Your Profile</label>
+          <div class="hint">Your display name and the name used for mention tracking</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input type="text" id="setting-profile-name" placeholder="Display Name" style="flex:1;" />
+            <input type="text" id="setting-track-name" placeholder="Track Name (for mentions)" style="flex:1;" />
+            <button class="btn btn-primary btn-sm" onclick="saveProfile()">Save</button>
           </div>
+          <div class="hint" style="font-size:0.72rem;">Display name is what others see. Track name is matched against messages for your mentions.</div>
         </div>
 
         <div class="setting-group">
@@ -1597,11 +1736,188 @@
 
   </div>
 
+  </div><!-- /app-container -->
+
   <script>
     const API = '';
     let currentView = 'dashboard';
     let feedData = [];
     let pollTimer = null;
+    let currentUser = null;
+
+    // ═══════════════════════════════════════════
+    // Auth
+    // ═══════════════════════════════════════════
+
+    function getAuthToken() {
+      return localStorage.getItem('cc_token');
+    }
+
+    function getAuthHeaders() {
+      const token = getAuthToken();
+      return token ? { 'Authorization': 'Bearer ' + token } : {};
+    }
+
+    function showAuthForm(form) {
+      document.getElementById('auth-box-login').style.display = form === 'login' ? 'block' : 'none';
+      document.getElementById('auth-box-register').style.display = form === 'register' ? 'block' : 'none';
+      document.getElementById('login-error').style.display = 'none';
+      document.getElementById('register-error').style.display = 'none';
+    }
+
+    async function handleLogin() {
+      const btn = document.getElementById('btn-login');
+      const errEl = document.getElementById('login-error');
+      errEl.style.display = 'none';
+      btn.disabled = true;
+
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      if (!email || !password) {
+        errEl.textContent = 'Please enter your email and password.';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        return;
+      }
+
+      try {
+        const res = await fetch(API + '/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+
+        if (!data.ok) {
+          errEl.textContent = data.error || 'Login failed.';
+          errEl.style.display = 'block';
+          btn.disabled = false;
+          return;
+        }
+
+        localStorage.setItem('cc_token', data.token);
+        currentUser = data.user;
+        onAuthSuccess();
+      } catch (e) {
+        errEl.textContent = 'Connection error. Please try again.';
+        errEl.style.display = 'block';
+      }
+      btn.disabled = false;
+    }
+
+    async function handleRegister() {
+      const btn = document.getElementById('btn-register');
+      const errEl = document.getElementById('register-error');
+      errEl.style.display = 'none';
+      btn.disabled = true;
+
+      const name = document.getElementById('register-name').value.trim();
+      const email = document.getElementById('register-email').value.trim();
+      const password = document.getElementById('register-password').value;
+      const trackName = document.getElementById('register-track-name').value.trim() || name;
+
+      if (!name || !email || !password) {
+        errEl.textContent = 'Please fill in all required fields.';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        return;
+      }
+
+      if (password.length < 6) {
+        errEl.textContent = 'Password must be at least 6 characters.';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        return;
+      }
+
+      try {
+        const res = await fetch(API + '/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password, trackName })
+        });
+        const data = await res.json();
+
+        if (!data.ok) {
+          errEl.textContent = data.error || 'Registration failed.';
+          errEl.style.display = 'block';
+          btn.disabled = false;
+          return;
+        }
+
+        localStorage.setItem('cc_token', data.token);
+        currentUser = data.user;
+        onAuthSuccess();
+      } catch (e) {
+        errEl.textContent = 'Connection error. Please try again.';
+        errEl.style.display = 'block';
+      }
+      btn.disabled = false;
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('cc_token');
+      currentUser = null;
+      document.getElementById('auth-screen').classList.remove('hidden');
+      document.getElementById('app-container').style.display = 'none';
+      document.getElementById('sidebar-user').style.display = 'none';
+      showAuthForm('login');
+    }
+
+    function onAuthSuccess() {
+      // Hide login, show app
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app-container').style.display = '';
+
+      // Update sidebar user info
+      const userEl = document.getElementById('sidebar-user');
+      userEl.style.display = 'flex';
+      document.getElementById('sidebar-user-name').textContent = currentUser.name;
+      document.getElementById('sidebar-user-email').textContent = currentUser.email;
+      document.getElementById('sidebar-avatar').textContent = (currentUser.name || '?')[0].toUpperCase();
+
+      // Start the app
+      loadDashboard();
+      startPolling();
+    }
+
+    async function checkAuth() {
+      const token = getAuthToken();
+      if (!token) {
+        showAuthForm('login');
+        return;
+      }
+
+      try {
+        const res = await fetch(API + '/api/auth/me', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+
+        if (data.ok && data.user) {
+          currentUser = data.user;
+          onAuthSuccess();
+        } else {
+          localStorage.removeItem('cc_token');
+          showAuthForm('login');
+        }
+      } catch (e) {
+        // Network error — show login
+        showAuthForm('login');
+      }
+    }
+
+    // Allow Enter key to submit login/register
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        if (document.getElementById('auth-box-login').style.display !== 'none' && !document.getElementById('auth-screen').classList.contains('hidden')) {
+          handleLogin();
+        } else if (document.getElementById('auth-box-register').style.display !== 'none' && !document.getElementById('auth-screen').classList.contains('hidden')) {
+          handleRegister();
+        }
+      }
+    });
 
     // ═══════════════════════════════════════════
     // Navigation
@@ -1660,9 +1976,10 @@
         const text = document.getElementById('sidebar-status-text');
         const settingsStatus = document.getElementById('settings-wa-status');
 
-        dot.className = 'status-dot ' + (data.whatsapp === 'ready' ? 'ready' : data.whatsapp === 'qr' ? 'qr' : 'disconnected');
+        const dotClass = data.whatsapp === 'ready' ? 'ready' : data.whatsapp === 'qr' ? 'qr' : data.whatsapp === 'cloud' ? 'cloud' : 'disconnected';
+        dot.className = 'status-dot ' + dotClass;
 
-        const labels = { ready: 'Connected', qr: 'Scan QR', loading: 'Loading...', disconnected: 'Disconnected', failed: 'Failed' };
+        const labels = { ready: 'Connected', qr: 'Scan QR', loading: 'Loading...', disconnected: 'Disconnected', failed: 'Failed', cloud: 'Cloud Dashboard' };
         text.textContent = labels[data.whatsapp] || 'Unknown';
         if (settingsStatus) settingsStatus.textContent = labels[data.whatsapp] || data.whatsapp;
       } catch (e) {
@@ -1673,6 +1990,18 @@
     // ═══════════════════════════════════════════
     // Dashboard
     // ═══════════════════════════════════════════
+
+    // Cache hashes to avoid unnecessary DOM rebuilds (prevents jitter)
+    const _renderCache = {};
+    function _dataHash(data) {
+      return JSON.stringify(data);
+    }
+    function _shouldRender(key, data) {
+      const hash = _dataHash(data);
+      if (_renderCache[key] === hash) return false;
+      _renderCache[key] = hash;
+      return true;
+    }
 
     async function loadDashboard() {
       try {
@@ -1699,19 +2028,15 @@
         const questionList = (questions.ok && questions.questions) ? questions.questions : [];
         const mentionList = (mentionsData.ok && mentionsData.mentions) ? mentionsData.mentions.filter(m => !m.resolved) : [];
 
-        // Row 1: Smart Stat Cards
+        // Row 1: Smart Stat Cards (lightweight — always update text nodes)
         renderStatCards(stats, questionList, feedItems);
 
-        // Row 2: Group Health Grid
-        renderGroupHealthGrid(groupList);
-
-        // Row 3: Action Queue + Volume Chart
-        renderActionQueue(questionList, mentionList);
-        renderVolumeChart(feedItems);
-
-        // Row 4: Team Activity + Live Feed
-        renderTeamActivity(senderList);
-        renderLiveFeed(feedItems.slice(0, 15));
+        // Row 2-4: Only rebuild heavy DOM sections when data actually changes
+        if (_shouldRender('groups', groupList)) renderGroupHealthGrid(groupList);
+        if (_shouldRender('actions', [questionList, mentionList])) renderActionQueue(questionList, mentionList);
+        if (_shouldRender('volume', feedItems)) renderVolumeChart(feedItems);
+        if (_shouldRender('senders', senderList)) renderTeamActivity(senderList);
+        if (_shouldRender('livefeed', feedItems.slice(0, 15))) renderLiveFeed(feedItems.slice(0, 15));
 
         // Update sidebar badges
         updateBadges(stats);
@@ -2372,8 +2697,14 @@
           return;
         }
 
-        // Filter based on tab
+        // Filter by current user's track name (personalized mentions)
         let filtered = data.mentions;
+        if (currentUser && currentUser.track_name) {
+          const tn = currentUser.track_name.toLowerCase();
+          filtered = filtered.filter(m => m.body && m.body.toLowerCase().includes(tn));
+        }
+
+        // Filter based on tab
         if (mentionFilter === 'open') {
           filtered = filtered.filter(m => !m.resolved);
         } else if (mentionFilter === 'resolved') {
@@ -2604,7 +2935,12 @@
 
     async function loadSettings() {
       try {
-        // Load track name from dashboard (settings endpoint)
+        // Populate profile fields from current user
+        if (currentUser) {
+          document.getElementById('setting-profile-name').value = currentUser.name || '';
+          document.getElementById('setting-track-name').value = currentUser.track_name || '';
+        }
+
         const [pgRes, staffRes] = await Promise.all([
           fetch(API + '/api/settings/partner-groups'),
           fetch(API + '/api/settings/staff')
@@ -3404,15 +3740,15 @@
 
     function startPolling() {
       pollStatus();
-      setInterval(pollStatus, 5000);
+      setInterval(pollStatus, 15000);
 
-      // Refresh current view every 15 seconds
+      // Refresh current view every 30 seconds
       setInterval(() => {
         switch (currentView) {
           case 'dashboard': loadDashboard(); break;
           case 'feed': loadFeed('all'); break;
         }
-      }, 15000);
+      }, 30000);
     }
 
     // ═══════════════════════════════════════════
@@ -3433,24 +3769,25 @@
         tabEl.classList.add('active');
       }
 
-      // Load staff for assignee filter
+      // Load users for assignee filter
       try {
-        const staffRes = await fetch(API + '/api/settings/staff');
-        const staffData = await staffRes.json();
-        if (staffData.ok) {
+        const usersRes = await fetch(API + '/api/users');
+        const usersData = await usersRes.json();
+        if (usersData.ok) {
+          const userNames = (usersData.users || []).map(u => u.name);
           const sel = document.getElementById('task-filter-assignee');
           const currentVal = sel.value;
           sel.innerHTML = '<option value="">All Assignees</option>';
-          (staffData.staff || []).forEach(s => {
-            sel.innerHTML += `<option value="${s}">${s}</option>`;
+          userNames.forEach(s => {
+            sel.innerHTML += `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`;
           });
           sel.value = currentVal;
           // Also populate modal assignee dropdown
           const modalSel = document.getElementById('new-task-assignee');
           const modalVal = modalSel.value;
           modalSel.innerHTML = '<option value="">Unassigned</option>';
-          (staffData.staff || []).forEach(s => {
-            modalSel.innerHTML += `<option value="${s}">${s}</option>`;
+          userNames.forEach(s => {
+            modalSel.innerHTML += `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`;
           });
           modalSel.value = modalVal;
         }
@@ -3533,8 +3870,10 @@
         if (t.due_date) {
           const d = new Date(t.due_date);
           const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const timeStr = d.toTimeString().slice(0, 5);
+          const hasTime = timeStr !== '23:59';
           const isOverdue = !isCompleted && t.due_date < Date.now();
-          dueMeta = `<span class="${isOverdue ? 'overdue' : ''}">📅 ${dateStr}${isOverdue ? ' (overdue)' : ''}</span>`;
+          dueMeta = `<span class="${isOverdue ? 'overdue' : ''}">📅 ${dateStr}${hasTime ? ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}${isOverdue ? ' (overdue)' : ''}</span>`;
         }
 
         const assigneeMeta = t.assigned_to ? `<span>👤 ${escapeHtml(t.assigned_to)}</span>` : '';
@@ -3638,11 +3977,11 @@
         </div>
       </div>`;
 
-      // Due Date
-      const dueDateVal = t.due_date ? new Date(t.due_date).toISOString().split('T')[0] : '';
+      // Due Date + optional Time (Flatpickr)
+      const dueDateDisplay = t.due_date ? new Date(t.due_date).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
       html += `<div class="task-detail-section">
-        <label>Due Date</label>
-        <input type="date" value="${dueDateVal}" onchange="saveTaskField('${t.id}', 'due_date', this.value ? new Date(this.value).getTime() : null)">
+        <label>Due Date & Time</label>
+        <input type="text" id="task-edit-due-${t.id}" value="${dueDateDisplay}" placeholder="Click to pick a date..." readonly style="cursor:pointer;">
       </div>`;
 
       // Status
@@ -3691,20 +4030,41 @@
 
       detail.innerHTML = html;
 
+      // Initialize Flatpickr on the due date field in detail panel
+      const editDueEl = document.getElementById(`task-edit-due-${t.id}`);
+      if (editDueEl) {
+        flatpickr(editDueEl, {
+          enableTime: true,
+          dateFormat: 'M j, Y h:i K',
+          altInput: true,
+          altFormat: 'M j, Y h:i K',
+          time_24hr: false,
+          defaultDate: t.due_date ? new Date(t.due_date) : null,
+          defaultHour: 17,
+          defaultMinute: 0,
+          allowInput: false,
+          clickOpens: true,
+          onChange: function(selectedDates) {
+            const due = selectedDates.length > 0 ? selectedDates[0].getTime() : null;
+            saveTaskField(t.id, 'due_date', due);
+          }
+        });
+      }
+
       // Populate assignee dropdown in detail
       populateAssigneeDropdown('task-edit-assignee', t.assigned_to);
     }
 
     async function populateAssigneeDropdown(selectId, currentValue) {
       try {
-        const res = await fetch(API + '/api/settings/staff');
+        const res = await fetch(API + '/api/users');
         const data = await res.json();
         if (data.ok) {
           const sel = document.getElementById(selectId);
           if (!sel) return;
           sel.innerHTML = '<option value="">Unassigned</option>';
-          (data.staff || []).forEach(s => {
-            sel.innerHTML += `<option value="${s}" ${s === currentValue ? 'selected' : ''}>${s}</option>`;
+          (data.users || []).forEach(u => {
+            sel.innerHTML += `<option value="${escapeHtml(u.name)}" ${u.name === currentValue ? 'selected' : ''}>${escapeHtml(u.name)}</option>`;
           });
         }
       } catch (e) { /* ignore */ }
@@ -3785,11 +4145,25 @@
 
     // ── New Task Modal ──
 
+    let newTaskFlatpickr = null;
     function openNewTaskModal(prefill = {}) {
       document.getElementById('new-task-title').value = prefill.title || '';
       document.getElementById('new-task-body').value = prefill.body || '';
       document.getElementById('new-task-priority').value = prefill.priority || 'normal';
       document.getElementById('new-task-due').value = '';
+      // Initialize Flatpickr on the due date field
+      if (newTaskFlatpickr) newTaskFlatpickr.destroy();
+      newTaskFlatpickr = flatpickr('#new-task-due', {
+        enableTime: true,
+        dateFormat: 'M j, Y h:i K',
+        altInput: true,
+        altFormat: 'M j, Y h:i K',
+        time_24hr: false,
+        defaultHour: 17,
+        defaultMinute: 0,
+        allowInput: false,
+        clickOpens: true
+      });
       document.getElementById('new-task-modal').classList.add('open');
 
       // Store prefill source info
@@ -3812,14 +4186,17 @@
       if (!title) { alert('Title is required'); return; }
 
       const modal = document.getElementById('new-task-modal');
-      const dueVal = document.getElementById('new-task-due').value;
+      let dueDate = null;
+      if (newTaskFlatpickr && newTaskFlatpickr.selectedDates.length > 0) {
+        dueDate = newTaskFlatpickr.selectedDates[0].getTime();
+      }
 
       const taskData = {
         title,
         body: document.getElementById('new-task-body').value.trim(),
         priority: document.getElementById('new-task-priority').value,
         assignedTo: document.getElementById('new-task-assignee').value || null,
-        dueDate: dueVal ? new Date(dueVal).getTime() : null,
+        dueDate,
         chatId: modal.dataset.chatId || null,
         chatName: modal.dataset.chatName || null,
         sender: modal.dataset.sender || null,
@@ -3873,11 +4250,41 @@
     }
 
     // ═══════════════════════════════════════════
+    // Profile Save
+    // ═══════════════════════════════════════════
+
+    async function saveProfile() {
+      if (!currentUser) return;
+      const name = document.getElementById('setting-profile-name').value.trim();
+      const trackName = document.getElementById('setting-track-name').value.trim();
+
+      if (!name) { alert('Name is required'); return; }
+
+      try {
+        const res = await fetch(API + '/api/auth/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ name, trackName })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          currentUser = data.user;
+          document.getElementById('sidebar-user-name').textContent = currentUser.name;
+          document.getElementById('sidebar-avatar').textContent = (currentUser.name || '?')[0].toUpperCase();
+          alert('Profile saved!');
+        } else {
+          alert(data.error || 'Failed to save profile');
+        }
+      } catch (e) {
+        alert('Connection error');
+      }
+    }
+
+    // ═══════════════════════════════════════════
     // Init
     // ═══════════════════════════════════════════
 
-    loadDashboard();
-    startPolling();
+    checkAuth();
   </script>
 </body>
 </html>

@@ -797,14 +797,18 @@ class Store {
   // ═══════════════════════════════════════════
 
   async getGroups() {
-    const { data } = await this.supabase
+    const partnerIds = await this._getPartnerChatIds();
+    let query = this.supabase
       .from('groups')
       .select('*')
       .order('last_message_time', { ascending: false });
+    if (partnerIds) query = query.in('chat_id', partnerIds);
+    const { data } = await query;
     return data || [];
   }
 
   async getGroupsSorted(includeIgnored = false) {
+    const partnerIds = await this._getPartnerChatIds();
     let query = this.supabase
       .from('groups')
       .select('*')
@@ -813,26 +817,33 @@ class Store {
     if (!includeIgnored) {
       query = query.eq('is_ignored', false);
     }
+    if (partnerIds) query = query.in('chat_id', partnerIds);
 
     const { data } = await query;
     return data || [];
   }
 
   async getMentions(limit = 200) {
-    const { data } = await this.supabase
+    const partnerIds = await this._getPartnerChatIds();
+    let query = this.supabase
       .from('mentions')
       .select('*')
       .order('timestamp', { ascending: false })
       .limit(limit);
+    if (partnerIds) query = query.in('chat_id', partnerIds);
+    const { data } = await query;
     return data || [];
   }
 
   async getDirectMessages(limit = 200) {
-    const { data } = await this.supabase
+    const partnerIds = await this._getPartnerChatIds();
+    let query = this.supabase
       .from('direct_messages')
       .select('*')
       .order('timestamp', { ascending: false })
       .limit(limit);
+    if (partnerIds) query = query.in('chat_id', partnerIds);
+    const { data } = await query;
     return data || [];
   }
 
@@ -893,6 +904,7 @@ class Store {
   }
 
   async getQuestions(unansweredOnly = false, limit = 200) {
+    const partnerIds = await this._getPartnerChatIds();
     let query = this.supabase
       .from('questions')
       .select('*')
@@ -902,17 +914,21 @@ class Store {
     if (unansweredOnly) {
       query = query.eq('status', 'open');
     }
+    if (partnerIds) query = query.in('chat_id', partnerIds);
 
     const { data } = await query;
     return data || [];
   }
 
   async getActivityFeed(limit = 50) {
-    const { data } = await this.supabase
+    const partnerIds = await this._getPartnerChatIds();
+    let query = this.supabase
       .from('activity_feed')
       .select('*')
       .order('timestamp', { ascending: false })
       .limit(limit);
+    if (partnerIds) query = query.in('chat_id', partnerIds);
+    const { data } = await query;
     return data || [];
   }
 
@@ -920,8 +936,9 @@ class Store {
     const now = Date.now();
     const oneDayAgo = now - 86400000;
     const todayKey = this._todayKey();
+    const partnerIds = await this._getPartnerChatIds();
 
-    // Get groups
+    // Get groups (already filtered by partner groups)
     const groups = await this.getGroups();
 
     // Today's messages (sum todayCount where todayDate matches)
@@ -932,38 +949,34 @@ class Store {
     const activeGroupsToday = groups.filter(g => g.last_message_time > oneDayAgo).length;
 
     // Pending questions
-    const { count: pendingQuestions } = await this.supabase
-      .from('questions')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'open');
+    let qOpen = this.supabase.from('questions').select('*', { count: 'exact', head: true }).eq('status', 'open');
+    if (partnerIds) qOpen = qOpen.in('chat_id', partnerIds);
+    const { count: pendingQuestions } = await qOpen;
 
     // Unresolved mentions only
-    const { count: unresolvedMentions } = await this.supabase
-      .from('mentions')
-      .select('*', { count: 'exact', head: true })
-      .or('resolved.is.null,resolved.eq.false');
+    let qMentionsUnresolved = this.supabase.from('mentions').select('*', { count: 'exact', head: true }).or('resolved.is.null,resolved.eq.false');
+    if (partnerIds) qMentionsUnresolved = qMentionsUnresolved.in('chat_id', partnerIds);
+    const { count: unresolvedMentions } = await qMentionsUnresolved;
 
     // Total mentions (for reference)
-    const { count: totalMentions } = await this.supabase
-      .from('mentions')
-      .select('*', { count: 'exact', head: true });
+    let qMentionsTotal = this.supabase.from('mentions').select('*', { count: 'exact', head: true });
+    if (partnerIds) qMentionsTotal = qMentionsTotal.in('chat_id', partnerIds);
+    const { count: totalMentions } = await qMentionsTotal;
 
     // Unresolved DMs only
-    const { count: unresolvedDMs } = await this.supabase
-      .from('direct_messages')
-      .select('*', { count: 'exact', head: true })
-      .or('resolved.is.null,resolved.eq.false');
+    let qDMsUnresolved = this.supabase.from('direct_messages').select('*', { count: 'exact', head: true }).or('resolved.is.null,resolved.eq.false');
+    if (partnerIds) qDMsUnresolved = qDMsUnresolved.in('chat_id', partnerIds);
+    const { count: unresolvedDMs } = await qDMsUnresolved;
 
     // Total DMs (for reference)
-    const { count: totalDMs } = await this.supabase
-      .from('direct_messages')
-      .select('*', { count: 'exact', head: true });
+    let qDMsTotal = this.supabase.from('direct_messages').select('*', { count: 'exact', head: true });
+    if (partnerIds) qDMsTotal = qDMsTotal.in('chat_id', partnerIds);
+    const { count: totalDMs } = await qDMsTotal;
 
     // Answered questions count (for response rate)
-    const { count: answeredQuestions } = await this.supabase
-      .from('questions')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'answered');
+    let qAnswered = this.supabase.from('questions').select('*', { count: 'exact', head: true }).eq('status', 'answered');
+    if (partnerIds) qAnswered = qAnswered.in('chat_id', partnerIds);
+    const { count: answeredQuestions } = await qAnswered;
 
     return {
       todayMessages,
@@ -995,6 +1008,7 @@ class Store {
     if (trimmed && !groups.some(n => n.toLowerCase() === trimmed.toLowerCase())) {
       groups.push(trimmed);
       this._cache.partnerGroups = groups;
+      this._cache._partnerChatIds = undefined; // bust chat-id cache
       await this._setSetting('partner_groups', groups);
     }
   }
@@ -1003,7 +1017,27 @@ class Store {
     let groups = await this.getPartnerGroupNames();
     groups = groups.filter(n => n.toLowerCase() !== name.toLowerCase());
     this._cache.partnerGroups = groups;
+    this._cache._partnerChatIds = undefined; // bust chat-id cache
     await this._setSetting('partner_groups', groups);
+  }
+
+  /**
+   * Returns an array of chat_ids for configured partner groups,
+   * or null if no partner groups are set (meaning "show everything").
+   */
+  async _getPartnerChatIds() {
+    if (this._cache._partnerChatIds !== undefined) return this._cache._partnerChatIds;
+    const names = await this.getPartnerGroupNames();
+    if (!names || names.length === 0) {
+      this._cache._partnerChatIds = null;
+      return null;
+    }
+    const { data } = await this.supabase
+      .from('groups')
+      .select('chat_id')
+      .in('name', names);
+    this._cache._partnerChatIds = (data && data.length > 0) ? data.map(g => g.chat_id) : null;
+    return this._cache._partnerChatIds;
   }
 
   // ═══════════════════════════════════════════
@@ -1194,12 +1228,18 @@ class Store {
   }
 
   async getTopSenders(limit = 10) {
+    const partnerIds = await this._getPartnerChatIds();
+    // Fetch extra rows to allow for post-filtering
+    const fetchLimit = partnerIds ? limit * 5 : limit;
     const { data } = await this.supabase
       .from('sender_stats')
       .select('*')
       .order('message_count', { ascending: false })
-      .limit(limit);
-    return data || [];
+      .limit(fetchLimit);
+    if (!data) return [];
+    if (!partnerIds) return data.slice(0, limit);
+    // sender_stats.groups is an array of chat_ids — keep only senders active in partner groups
+    return data.filter(s => s.groups && s.groups.some(g => partnerIds.includes(g))).slice(0, limit);
   }
 
   // ═══════════════════════════════════════════
@@ -1250,6 +1290,7 @@ class Store {
   }
 
   async getTasks({ status, assignee, priority, myDay, limit } = {}) {
+    const partnerIds = await this._getPartnerChatIds();
     let query = this.supabase
       .from('tasks')
       .select('*')
@@ -1267,6 +1308,8 @@ class Store {
     if (myDay) {
       query = query.eq('my_day', true);
     }
+    // Filter tasks by partner groups (tasks with null chat_id are manual — always show)
+    if (partnerIds) query = query.or(`chat_id.in.(${partnerIds.join(',')}),chat_id.is.null`);
     if (limit) {
       query = query.limit(limit);
     } else {
@@ -1358,27 +1401,24 @@ class Store {
   }
 
   async getTaskStats() {
-    const { count: open } = await this.supabase
-      .from('tasks')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'open');
+    const partnerIds = await this._getPartnerChatIds();
+    const pFilter = partnerIds ? `chat_id.in.(${partnerIds.join(',')}),chat_id.is.null` : null;
 
-    const { count: inProgress } = await this.supabase
-      .from('tasks')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'in_progress');
+    let qOpen = this.supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('status', 'open');
+    if (pFilter) qOpen = qOpen.or(pFilter);
+    const { count: open } = await qOpen;
 
-    const { count: completed } = await this.supabase
-      .from('tasks')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'completed');
+    let qInProgress = this.supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('status', 'in_progress');
+    if (pFilter) qInProgress = qInProgress.or(pFilter);
+    const { count: inProgress } = await qInProgress;
 
-    const { count: overdue } = await this.supabase
-      .from('tasks')
-      .select('*', { count: 'exact', head: true })
-      .in('status', ['open', 'in_progress'])
-      .lt('due_date', Date.now())
-      .not('due_date', 'is', null);
+    let qCompleted = this.supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('status', 'completed');
+    if (pFilter) qCompleted = qCompleted.or(pFilter);
+    const { count: completed } = await qCompleted;
+
+    let qOverdue = this.supabase.from('tasks').select('*', { count: 'exact', head: true }).in('status', ['open', 'in_progress']).lt('due_date', Date.now()).not('due_date', 'is', null);
+    if (pFilter) qOverdue = qOverdue.or(pFilter);
+    const { count: overdue } = await qOverdue;
 
     return {
       open: open || 0,
@@ -1446,19 +1486,31 @@ class Store {
   // Date Helpers
   // ═══════════════════════════════════════════
 
+  _pacificDate(ts) {
+    const d = ts ? new Date(ts) : new Date();
+    // Always use America/Los_Angeles so Vercel (UTC) matches the local bot
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', hour12: false
+    }).formatToParts(d);
+    const get = type => parts.find(p => p.type === type).value;
+    return { year: get('year'), month: get('month'), day: get('day'), hour: get('hour') };
+  }
+
   _todayKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const p = this._pacificDate();
+    return `${p.year}-${p.month}-${p.day}`;
   }
 
   _hourKey(ts) {
-    const d = new Date(ts);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}-${String(d.getHours()).padStart(2, '0')}`;
+    const p = this._pacificDate(ts);
+    return `${p.year}-${p.month}-${p.day}-${p.hour}`;
   }
 
   _dayKey(ts) {
-    const d = new Date(ts);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const p = this._pacificDate(ts);
+    return `${p.year}-${p.month}-${p.day}`;
   }
 
   // ═══════════════════════════════════════════
@@ -1467,6 +1519,87 @@ class Store {
 
   async forceSave() {
     // No-op — Supabase writes are immediate
+  }
+
+  // ═══════════════════════════════════════════
+  // User Management
+  // ═══════════════════════════════════════════
+
+  async createUser({ email, passwordHash, name, trackName, isAdmin = false }) {
+    const { data, error } = await this.supabase
+      .from('users')
+      .insert({
+        email: email.toLowerCase().trim(),
+        password_hash: passwordHash,
+        name: name.trim(),
+        track_name: (trackName || '').trim(),
+        is_admin: isAdmin
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async getUserByEmail(email) {
+    const { data } = await this.supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase().trim())
+      .single();
+    return data || null;
+  }
+
+  async getUserById(id) {
+    const { data } = await this.supabase
+      .from('users')
+      .select('id, email, name, track_name, is_admin, created_at')
+      .eq('id', id)
+      .single();
+    return data || null;
+  }
+
+  async getUsers() {
+    const { data } = await this.supabase
+      .from('users')
+      .select('id, email, name, track_name, is_admin, created_at')
+      .order('name');
+    return data || [];
+  }
+
+  async updateUser(id, updates) {
+    const allowed = {};
+    if (updates.name !== undefined) allowed.name = updates.name.trim();
+    if (updates.trackName !== undefined) allowed.track_name = (updates.trackName || '').trim();
+    if (updates.email !== undefined) allowed.email = updates.email.toLowerCase().trim();
+    if (updates.passwordHash !== undefined) allowed.password_hash = updates.passwordHash;
+    allowed.updated_at = new Date().toISOString();
+
+    const { data, error } = await this.supabase
+      .from('users')
+      .update(allowed)
+      .eq('id', id)
+      .select('id, email, name, track_name, is_admin, created_at')
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async deleteUser(id) {
+    const { error } = await this.supabase
+      .from('users')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  }
+
+  async getAllTrackNames() {
+    const { data } = await this.supabase
+      .from('users')
+      .select('track_name')
+      .neq('track_name', '');
+    return (data || []).map(u => u.track_name).filter(Boolean);
   }
 }
 

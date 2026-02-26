@@ -11,8 +11,12 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const Store = require('../store');
 const AIClassifier = require('../ai-classifier');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'whatsapp-cc-default-secret-change-me';
 
 const app = express();
 
@@ -38,6 +42,135 @@ function getAI() {
   }
   return aiClassifier;
 }
+
+// ── Auth Middleware ──
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ ok: false, error: 'Authentication required' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Auth Routes
+// ═══════════════════════════════════════════════
+
+// Register
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const s = await getStore();
+    const { email, password, name, trackName } = req.body;
+
+    if (!email || !password || !name) {
+      return res.status(400).json({ ok: false, error: 'Email, password, and name are required' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ ok: false, error: 'Password must be at least 6 characters' });
+    }
+
+    // Check if email already exists
+    const existing = await s.getUserByEmail(email);
+    if (existing) {
+      return res.status(409).json({ ok: false, error: 'An account with this email already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await s.createUser({ email, passwordHash, name, trackName: trackName || name });
+
+    const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '30d' });
+
+    res.json({
+      ok: true,
+      token,
+      user: { id: user.id, email: user.email, name: user.name, track_name: user.track_name, is_admin: user.is_admin }
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const s = await getStore();
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ ok: false, error: 'Email and password are required' });
+    }
+
+    const user = await s.getUserByEmail(email);
+    if (!user) {
+      return res.status(401).json({ ok: false, error: 'Invalid email or password' });
+    }
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ ok: false, error: 'Invalid email or password' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '30d' });
+
+    res.json({
+      ok: true,
+      token,
+      user: { id: user.id, email: user.email, name: user.name, track_name: user.track_name, is_admin: user.is_admin }
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Get current user profile
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const s = await getStore();
+    const user = await s.getUserById(req.user.id);
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+    res.json({ ok: true, user });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Update current user profile
+app.put('/api/auth/profile', authenticateToken, async (req, res) => {
+  try {
+    const s = await getStore();
+    const { name, trackName, email, password } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (trackName !== undefined) updates.trackName = trackName;
+    if (email !== undefined) updates.email = email;
+    if (password) {
+      if (password.length < 6) return res.status(400).json({ ok: false, error: 'Password must be at least 6 characters' });
+      updates.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    const user = await s.updateUser(req.user.id, updates);
+    res.json({ ok: true, user });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// List all users (for assignment dropdowns, etc.)
+app.get('/api/users', async (req, res) => {
+  try {
+    const s = await getStore();
+    const users = await s.getUsers();
+    res.json({ ok: true, users });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 // ═══════════════════════════════════════════════
 // API Routes (Data only — no WhatsApp client needed)
