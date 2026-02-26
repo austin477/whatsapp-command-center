@@ -55,23 +55,48 @@ class WhatsAppService extends EventEmitter {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 
-    // Clean up stale Chromium lock files from persistent volume (prevents "profile in use" errors after redeploy)
+    // Kill any orphaned Chromium processes from previous deploys
+    try {
+      const { execSync } = require('child_process');
+      execSync('pkill -f chromium || pkill -f chrome || true', { timeout: 5000 });
+      console.log('[Cleanup] Killed any orphaned Chromium processes');
+    } catch (err) {
+      console.log('[Cleanup] No orphaned Chromium processes found (or pkill not available)');
+    }
+
+    // Aggressively clean up ALL stale Chromium lock/socket files from persistent volume
+    // Chromium's process_singleton_posix.cc uses Unix domain sockets + symlinks + lock files
     try {
       const authDir = path.join(DATA_DIR, '.wwebjs_auth');
       if (fs.existsSync(authDir)) {
+        const lockPatterns = ['SingletonLock', 'SingletonSocket', 'SingletonCookie', 'lockfile', 'Lock', 'LOCK'];
         const cleanLocks = (dir) => {
-          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          let entries;
+          try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
           for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
-            if (entry.isFile() && (entry.name === 'SingletonLock' || entry.name === 'SingletonSocket' || entry.name === 'SingletonCookie')) {
-              console.log('[Cleanup] Removing stale lock file:', fullPath);
-              fs.unlinkSync(fullPath);
-            } else if (entry.isDirectory()) {
-              cleanLocks(fullPath);
+            try {
+              const stat = fs.lstatSync(fullPath);
+              // Remove lock files, socket files, and symlinks matching lock patterns
+              if (stat.isSocket()) {
+                console.log('[Cleanup] Removing stale socket:', fullPath);
+                fs.unlinkSync(fullPath);
+              } else if (stat.isSymbolicLink() && lockPatterns.some(p => entry.name.includes(p))) {
+                console.log('[Cleanup] Removing stale symlink:', fullPath);
+                fs.unlinkSync(fullPath);
+              } else if (stat.isFile() && lockPatterns.some(p => entry.name.includes(p))) {
+                console.log('[Cleanup] Removing stale lock file:', fullPath);
+                fs.unlinkSync(fullPath);
+              } else if (stat.isDirectory()) {
+                cleanLocks(fullPath);
+              }
+            } catch (e) {
+              console.log('[Cleanup] Could not process', fullPath, e.message);
             }
           }
         };
         cleanLocks(authDir);
+        console.log('[Cleanup] Lock file cleanup complete');
       }
     } catch (err) {
       console.error('[Cleanup] Error cleaning lock files:', err.message);
@@ -87,7 +112,9 @@ class WhatsAppService extends EventEmitter {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
-        '--single-process'
+        '--single-process',
+        '--no-first-run',
+        '--disable-features=LockProfileCookieDatabase'
       ]
     };
     if (systemChrome) {
