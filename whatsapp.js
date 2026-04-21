@@ -818,6 +818,23 @@ class WhatsAppService extends EventEmitter {
           try {
             const chat = window.Store && window.Store.Chat && window.Store.Chat.get(cid);
             if (!chat || !chat.msgs) return [];
+            // WA Web's loadEarlierMsgs now requires the new object signature
+            // {chat, msgCollection, threadId} — whatsapp-web.js still calls
+            // it positionally which makes WA crash on an undefined unproxy.
+            // Call it ourselves with the correct shape, looping until we have
+            // enough messages or the server reports no more history.
+            const loadFn = window.Store.ConversationMsgs && window.Store.ConversationMsgs.loadEarlierMsgs;
+            let safety = 60; // cap iterations — each loads ~20-30 msgs
+            while (loadFn && chat.msgs.getModelsArray().filter(m => !m.isNotification).length < lim && safety-- > 0) {
+              try {
+                const res = await loadFn({ chat, msgCollection: chat.msgs, threadId: chat.id });
+                if (!res || (Array.isArray(res) && !res.length)) break;
+                if (chat.msgLoadState && chat.msgLoadState.noEarlierMsgs) break;
+              } catch (loadErr) {
+                // Swallow individual load errors but stop paging this chat
+                break;
+              }
+            }
             const all = chat.msgs.getModelsArray();
             const filtered = all.filter(m => !m.isNotification);
             const slice = filtered.slice(-lim);
