@@ -790,6 +790,7 @@ class WhatsAppService extends EventEmitter {
       questions: 0,
       mentions: 0,
       errors: 0,
+      errorDetails: [],
       currentChat: ''
     };
 
@@ -807,8 +808,24 @@ class WhatsAppService extends EventEmitter {
       report();
 
       try {
-        // Fetch message history
-        const messages = await chat.fetchMessages({ limit: messagesPerChat });
+        // Warm up the chat's message store — after a reconnect, whatsapp-web.js
+        // has chat metadata but hasn't hydrated message history. Re-fetch the
+        // chat by id and touch lastMessage to force the Web client to pull
+        // history; then retry fetchMessages a few times if it still returns [].
+        let messages = [];
+        try {
+          const freshChat = await this.client.getChatById(chatId);
+          void freshChat.lastMessage;
+          try { await freshChat.sendSeen(); } catch { /* ok */ }
+          for (let attempt = 0; attempt < 4; attempt++) {
+            messages = await freshChat.fetchMessages({ limit: messagesPerChat });
+            if (messages && messages.length > 0) break;
+            await new Promise(r => setTimeout(r, 1500));
+          }
+        } catch (warmErr) {
+          // Fall back to original path
+          messages = await chat.fetchMessages({ limit: messagesPerChat });
+        }
         console.log(`[Backfill] ${chatName}: fetched ${messages.length} messages`);
 
         // Check which msg_ids already exist in our messages table to skip dupes
@@ -961,6 +978,9 @@ class WhatsAppService extends EventEmitter {
       } catch (err) {
         console.error(`[Backfill] Error on ${chatName}:`, err.message);
         stats.errors++;
+        if (stats.errorDetails.length < 5) {
+          stats.errorDetails.push({ chat: chatName, error: err.message, stack: (err.stack || '').substring(0, 300) });
+        }
         stats.processedChats++;
         report();
       }
