@@ -126,14 +126,6 @@ class WhatsAppService extends EventEmitter {
         dataPath: path.join(DATA_DIR, '.wwebjs_auth')
       }),
       puppeteer: puppeteerOpts,
-      // Pin an older WhatsApp Web HTML build — newer builds renamed the
-      // internal `waitForChatLoading` module that whatsapp-web.js@1.34.x
-      // depends on, breaking fetchMessages and the live message listener.
-      webVersion: '2.2412.54',
-      webVersionCache: {
-        type: 'remote',
-        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
-      },
     });
 
     // ── QR Code Event ──
@@ -816,25 +808,70 @@ class WhatsAppService extends EventEmitter {
       report();
 
       try {
-        // Warm up the chat's message store — after a reconnect, whatsapp-web.js
-        // has chat metadata but hasn't hydrated message history. Re-fetch the
-        // chat by id and touch lastMessage to force the Web client to pull
-        // history; then retry fetchMessages a few times if it still returns [].
-        let messages = [];
-        try {
-          const freshChat = await this.client.getChatById(chatId);
-          void freshChat.lastMessage;
-          try { await freshChat.sendSeen(); } catch { /* ok */ }
-          for (let attempt = 0; attempt < 4; attempt++) {
-            messages = await freshChat.fetchMessages({ limit: messagesPerChat });
-            if (messages && messages.length > 0) break;
-            await new Promise(r => setTimeout(r, 1500));
-          }
-        } catch (warmErr) {
-          // Fall back to original path
-          messages = await chat.fetchMessages({ limit: messagesPerChat });
+        // WhatsApp Web changed internals so chat.fetchMessages throws
+        // `waitForChatLoading` undefined. Bypass it: read the already-loaded
+        // messages directly from WA Web's in-memory Store via pupPage.
+        // This returns whatever WA Web has synced for this chat (typically
+        // recent history after reconnect), without triggering the broken
+        // loadEarlierMsgs path.
+        const rawMessages = await this.client.pupPage.evaluate(async (cid, lim) => {
+          try {
+            const chat = window.Store && window.Store.Chat && window.Store.Chat.get(cid);
+            if (!chat || !chat.msgs) return [];
+            const all = chat.msgs.getModelsArray();
+            const filtered = all.filter(m => !m.isNotification);
+            const slice = filtered.slice(-lim);
+            return slice.map(m => {
+              const mentioned = [];
+              try {
+                const list = m.mentionedJidList || (m.msgContextInfo && m.msgContextInfo.mentionedJidList) || [];
+                for (const j of list) mentioned.push(j._serialized || j.toString());
+              } catch {}
+              let quotedBody = '';
+              try { quotedBody = (m.quotedMsgObj && m.quotedMsgObj.body) || (m.quotedMsg && m.quotedMsg.body) || ''; } catch {}
+              return {
+                id: (m.id && (m.id._serialized || m.id.id)) || null,
+                body: m.body || m.caption || '',
+                fromMe: !!(m.id && m.id.fromMe),
+                from: (m.from && m.from._serialized) || (m.from && m.from.toString && m.from.toString()) || '',
+                author: (m.author && m.author._serialized) || (m.author && m.author.toString && m.author.toString()) || '',
+                t: m.t || 0,
+                type: m.type || 'chat',
+                hasMedia: !!m.mediaObject || !!m.deprecatedMms3Url || !!m.clientUrl,
+                mentionedIds: mentioned,
+                hasQuotedMsg: !!quotedBody,
+                quotedBody,
+              };
+            });
+          } catch (e) { return { __err: e.message || String(e) }; }
+        }, chatId, messagesPerChat);
+
+        if (rawMessages && rawMessages.__err) {
+          throw new Error('pupPage: ' + rawMessages.__err);
         }
-        console.log(`[Backfill] ${chatName}: fetched ${messages.length} messages`);
+        const client = this.client;
+        // Normalize into a message-like shape the downstream loop consumes
+        const messages = (Array.isArray(rawMessages) ? rawMessages : []).map(r => ({
+          id: r.id ? { _serialized: r.id, id: r.id } : null,
+          body: r.body,
+          fromMe: r.fromMe,
+          from: r.from,
+          author: r.author,
+          timestamp: r.t,
+          type: r.type,
+          hasMedia: r.hasMedia,
+          mentionedIds: r.mentionedIds || [],
+          hasQuotedMsg: !!r.hasQuotedMsg,
+          _data: r.hasQuotedMsg ? { quotedMsg: { body: r.quotedBody || '' } } : undefined,
+          getContact: async function () {
+            try {
+              const cid = r.fromMe ? null : (r.author || r.from);
+              if (!cid) return {};
+              return await client.getContactById(cid);
+            } catch { return {}; }
+          },
+        }));
+        console.log(`[Backfill] ${chatName}: fetched ${messages.length} messages (via Store)`);
 
         // Check which msg_ids already exist in our messages table to skip dupes
         const msgIds = messages
