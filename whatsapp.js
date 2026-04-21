@@ -125,7 +125,15 @@ class WhatsAppService extends EventEmitter {
       authStrategy: new LocalAuth({
         dataPath: path.join(DATA_DIR, '.wwebjs_auth')
       }),
-      puppeteer: puppeteerOpts
+      puppeteer: puppeteerOpts,
+      // Pin an older WhatsApp Web HTML build — newer builds renamed the
+      // internal `waitForChatLoading` module that whatsapp-web.js@1.34.x
+      // depends on, breaking fetchMessages and the live message listener.
+      webVersion: '2.2412.54',
+      webVersionCache: {
+        type: 'remote',
+        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+      },
     });
 
     // ── QR Code Event ──
